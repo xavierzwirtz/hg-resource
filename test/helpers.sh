@@ -7,7 +7,7 @@ set -o pipefail
 resource_dir=/opt/resource
 
 run() {
-  export TMPDIR=$(mktemp -d ${TMPDIR_ROOT}/git-tests.XXXXXX)
+  export TMPDIR=$(mktemp -d ${TMPDIR_ROOT}/hg-tests.XXXXXX)
 
   echo -e 'running \e[33m'"$@"$'\e[0m...'
   eval "$@" 2>&1 | sed -e 's/^/  /g'
@@ -72,10 +72,15 @@ make_commit_to_file_on_branch() {
   local branch=$3
   local msg=${4-}
 
+  hg branch -q --cwd $repo $branch
+
   # ensure branch exists
-  if ! hg checkout --cwd $repo $branch >/dev/null; then
-    hg checkout --cwd $repo default
-    hg branch --cwd $repo $branch
+  if ! check_branch_exists $repo $branch; then
+    # make sure we branch from default
+    hg checkout -q --cwd $repo default
+    hg branch -q --cwd $repo $branch
+  else
+    hg checkout -q --cwd $repo $branch
   fi
 
   # modify file and commit
@@ -84,6 +89,28 @@ make_commit_to_file_on_branch() {
   hg commit --cwd $repo \
     --config ui.username='test <test@example.com>' \
     -q -m "commit $(wc -l $repo/$file) $msg"
+
+  # output resulting sha
+  hg log --cwd $repo --limit 1 --template "{node}"
+}
+
+make_commit_to_file_on_branch_as_user_at_date() {
+  local repo=$1
+  local file=$2
+  local branch=$3
+  local user=$4
+  local date=$5
+  local msg=${6-}
+
+  hg branch --cwd $repo $branch &>/dev/null
+
+  # modify file and commit
+  echo x >> $repo/$file
+  hg add --cwd $repo $file 2>/dev/null
+  hg commit --cwd $repo \
+    --user "$user" \
+    --date "$date" \
+    -q -m "$msg"
 
   # output resulting sha
   hg log --cwd $repo --limit 1 --template "{node}"
@@ -125,6 +152,12 @@ make_annotated_tag() {
 
   hg tag --cwd $repo --message "$msg" "$tag"
   hg tip --cwd $repo --template '{node}\n'
+}
+
+check_branch_exists() {
+  local repo=$1
+  local branch=$2
+  hg log --cwd "$repo" --limit 1 --branch "$branch" &>/dev/null
 }
 
 check_uri() {

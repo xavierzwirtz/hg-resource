@@ -2,15 +2,13 @@
 
 set -e
 
-export TMPDIR_ROOT=$(mktemp -d /tmp/git-tests.XXXXXX)
+export TMPDIR_ROOT=$(mktemp -d /tmp/hg-tests.XXXXXX)
 
 $(dirname $0)/image.sh
 
 $(dirname $0)/test_check.sh
 
-# $(dirname $0)/check.sh
-
-# $(dirname $0)/get.sh
+$(dirname $0)/test_in.sh
 
 # $(dirname $0)/put.sh
 

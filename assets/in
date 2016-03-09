@@ -1,0 +1,55 @@
+#!/bin/sh
+# vim: set ft=sh
+
+set -e
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+source $(dirname $0)/common.sh
+
+destination=$1
+
+if [ -z "$destination" ]; then
+  echo "usage: $0 <path/to/destination>" >&2
+  exit 1
+fi
+
+# for jq
+PATH=/usr/local/bin:$PATH
+
+payload=$(mktemp $TMPDIR/git-resource-request.XXXXXX)
+
+cat > $payload <&0
+
+load_pubkey $payload
+configure_git_ssl_verification $payload
+
+uri=$(jq -r '.source.uri // ""' < $payload)
+branch=$(jq -r '.source.branch // ""' < $payload)
+ref=$(jq -r '.version.ref // "tip"' < $payload)
+fetch=$(jq -r '(.params.fetch // [])[]' < $payload)
+submodules=$(jq -r '(.params.submodules // "all")' < $payload)
+
+if [ -z "$uri" ]; then
+  echo "invalid payload (missing uri):" >&2
+  cat $payload >&2
+  exit 1
+fi
+
+if [ -z "$branch" ]; then
+	branch="default"
+fi
+
+hg clone -q --branch "$branch" $uri $destination
+
+cd $destination
+
+hg checkout -q --clean --rev "$ref"
+hg log --limit 1 --template '{node} {desc|firstline}\n'
+hg purge --config extensions.purge= --all
+
+jq -n "{
+  version: {ref: $(hg log --rev "$ref" --template "{node}" | jq -R .)},
+  metadata: $(hg_metadata)
+}" >&3

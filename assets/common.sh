@@ -29,47 +29,22 @@ configure_git_ssl_verification() {
   fi
 }
 
-git_metadata() {
-  local commit=$(git rev-parse HEAD | jq -R .)
-  local author=$(git log -1 --format=format:%an | jq -s -R .)
-  local author_date=$(git log -1 --format=format:%ai | jq -R .)
-  local committer=$(git log -1 --format=format:%cn | jq -s -R .)
-  local committer_date=$(git log -1 --format=format:%ci | jq -R .)
-  local message=$(git log -1 --format=format:%B | jq -s -R .)
+hg_metadata() {
+  local ref=$(hg identify --id)
 
-  if [ "$author" = "$committer" ] && [ "$author_date" = "$committer_date" ]; then
-    jq -n "[
-      {name: \"commit\", value: ${commit}},
-      {name: \"author\", value: ${author}},
-      {name: \"author_date\", value: ${author_date}, type: \"time\"},
-      {name: \"message\", value: ${message}, type: \"message\"}
-    ]"
-  else
-    jq -n "[
-      {name: \"commit\", value: ${commit}},
-      {name: \"author\", value: ${author}},
-      {name: \"author_date\", value: ${author_date}, type: \"time\"},
-      {name: \"committer\", value: ${committer}},
-      {name: \"committer_date\", value: ${committer_date}, type: \"time\"},
-      {name: \"message\", value: ${message}, type: \"message\"}
-    ]"
-  fi
-}
+  local commit=$(hg log --rev $ref --template "{node}" | jq -R .)
+  local author=$(hg log --rev $ref --template "{author}" | jq -s -R .)
+  local author_date=$(hg log --rev $ref --template "{date|isodatesec}" | jq -R .)
+  local message=$(hg log --rev $ref --template "{desc}" | jq -s -R .)
 
-tac() {
-  awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }'
+  jq -n "[
+    {name: \"commit\", value: ${commit}},
+    {name: \"author\", value: ${author}},
+    {name: \"author_date\", value: ${author_date}, type: \"time\"},
+    {name: \"message\", value: ${message}, type: \"message\"}
+  ]"
 }
 
 check_revision_exists() {
   hg log --rev $1 &>/dev/null
-}
-
-join_with_pipe() {
-  _join_with_pipe() {
-    for i in "$@"; do
-      echo -n "$i | "
-    done
-    echo
-  }
-  _join_with_pipe $@ | sed 's/ | $//'
 }
