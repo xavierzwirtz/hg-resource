@@ -22,7 +22,7 @@ EOF
   fi
 }
 
-configure_git_ssl_verification() {
+configure_ssl_verification() {
   skip_ssl_verification=$(jq -r '.source.skip_ssl_verification // false' < $1)
   if [ "$skip_ssl_verification" = "true" ]; then
     export GIT_SSL_NO_VERIFY=true
@@ -30,7 +30,7 @@ configure_git_ssl_verification() {
 }
 
 hg_metadata() {
-  local ref=$(hg identify --id)
+  local ref=$1
 
   local commit=$(hg log --rev $ref --template "{node}" | jq -R .)
   local author=$(hg log --rev $ref --template "{author}" | jq -s -R .)
@@ -47,4 +47,10 @@ hg_metadata() {
 
 check_revision_exists() {
   hg log --rev $1 &>/dev/null
+}
+
+get_working_dir_ref() {
+  local dest=$1
+  local commit_id=$(hg identify --cwd "$dest" --id)
+  hg log --cwd "$dest" --limit 1 --rev "$commit_id" --template '{node}'
 }

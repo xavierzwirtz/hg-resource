@@ -23,7 +23,7 @@ payload=$(mktemp $TMPDIR/git-resource-request.XXXXXX)
 cat > $payload <&0
 
 load_pubkey $payload
-configure_git_ssl_verification $payload
+configure_ssl_verification $payload
 
 uri=$(jq -r '.source.uri // ""' < $payload)
 branch=$(jq -r '.source.branch // ""' < $payload)
@@ -51,5 +51,5 @@ hg purge --config extensions.purge= --all
 
 jq -n "{
   version: {ref: $(hg log --rev "$ref" --template "{node}" | jq -R .)},
-  metadata: $(hg_metadata)
+  metadata: $(hg_metadata $ref)
 }" >&3

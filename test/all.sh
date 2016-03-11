@@ -10,7 +10,7 @@ $(dirname $0)/test_check.sh
 
 $(dirname $0)/test_in.sh
 
-# $(dirname $0)/put.sh
+$(dirname $0)/test_out.sh
 
 echo -e '\e[32mall tests passed!\e[0m'
 

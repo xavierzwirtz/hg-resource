@@ -66,6 +66,13 @@ init_repo_with_submodule() {
   echo $project,$submodule
 }
 
+# TODO move to common
+get_working_dir_ref() {
+  local dest=$1
+  local commit_id=$(hg identify --cwd "$dest" --id)
+  hg log --cwd "$dest" --limit 1 --rev "$commit_id" --template '{node}'
+}
+
 make_commit_to_file_on_branch() {
   local repo=$1
   local file=$2
@@ -128,6 +135,14 @@ make_commit() {
   make_commit_to_file $1 some-file
 }
 
+make_commit_after_1_second() {
+  local repo=$1
+  sleep 1
+  local commit_id=$(make_commit_to_file "$repo" third-file)
+  echo $commit_id
+  echo "made a commit in the background: $commit_id" >&2
+}
+
 make_commit_to_be_skipped() {
   make_commit_to_file $1 some-file "[ci skip]"
 }
@@ -151,7 +166,16 @@ make_annotated_tag() {
   local msg=$3
 
   hg tag --cwd $repo --message "$msg" "$tag"
-  hg tip --cwd $repo --template '{node}\n'
+  # tag commits are always added as tip
+  hg log --cwd $repo --rev tip --template '{node}\n'
+}
+
+make_tag() {
+  local repo=$1
+  local tag=$2
+  hg tag --cwd $repo "$tag"
+  # tag commits are always added as tip
+  hg log --cwd $repo --rev tip --template '{node}\n'
 }
 
 check_branch_exists() {
@@ -377,7 +401,7 @@ put_uri() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       repository: $(echo $3 | jq -R .)
@@ -402,7 +426,7 @@ put_uri_with_rebase() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       repository: $(echo $3 | jq -R .),
@@ -411,11 +435,24 @@ put_uri_with_rebase() {
   }" | ${resource_dir}/out "$2" | tee /dev/stderr
 }
 
+put_uri_with_rebase_and_race_conditions() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .),
+      branch: \"default\"
+    },
+    params: {
+      repository: $(echo $3 | jq -R .),
+      rebase: true
+    }
+  }" | TEST_RACE_CONDITIONS=true ${resource_dir}/out "$2" | tee /dev/stderr
+}
+
 put_uri_with_tag() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       tag: $(echo $3 | jq -R .),
@@ -428,7 +465,7 @@ put_uri_with_tag_and_prefix() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       tag: $(echo $3 | jq -R .),
@@ -442,7 +479,7 @@ put_uri_with_tag_and_annotation() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       tag: $(echo $3 | jq -R .),
@@ -456,7 +493,7 @@ put_uri_with_rebase_with_tag() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       tag: $(echo $3 | jq -R .),
@@ -470,7 +507,7 @@ put_uri_with_rebase_with_tag_and_prefix() {
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
-      branch: \"master\"
+      branch: \"default\"
     },
     params: {
       tag: $(echo $3 | jq -R .),

@@ -1,0 +1,162 @@
+#!/bin/sh
+# vim: set ft=sh
+
+set -e
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+source $(dirname $0)/common.sh
+
+source=$1
+
+if [[ -z "$source" ]]; then
+  echo "usage: $0 <path/to/source>"
+  exit 1
+fi
+
+# for jq
+PATH=/usr/local/bin:$PATH
+
+tag() {
+  if [ -n "$tag_name" ]; then
+    current_commit=$(hg identify --id)
+    hg checkout tip
+    # TODO add trap to return to $current_commit
+    if [ -n "$annotation_file" ]; then
+      local content=$(cat "$annotation_file")
+      hg tag --rev "$current_commit" "${tag_prefix}${tag_name}" --message "$content"
+    else
+      hg tag --rev "$current_commit" "${tag_prefix}${tag_name}"
+    fi
+    hg checkout "$current_commit"
+  fi
+}
+
+push_src_and_tags() {
+  hg push --config "paths.push-target=$uri" --branch $branch push-target
+}
+
+set_commit_id_to_return() {
+  local repo=$1
+  commit_to_return=$(get_working_dir_ref $repo)
+}
+
+set_global_params_from_json() {
+  uri=$(jq -r '.source.uri // ""' < $payload)
+  branch=$(jq -r '.source.branch // ""' < $payload)
+  repository=$(jq -r '.params.repository // ""' < $payload)
+  tag=$(jq -r '.params.tag // ""' < $payload)
+  tag_prefix=$(jq -r '.params.tag_prefix // ""' < $payload)
+  rebase=$(jq -r '.params.rebase // false' < $payload)
+  annotation_file=$(jq -r '.params.annotate // ""' < $payload)
+}
+
+validate_params() {
+  if [[ -z "$uri" ]]; then
+    echo "invalid payload (missing uri)"
+    exit 1
+  fi
+
+  if [ -z "$branch" ]; then
+    echo "invalid payload (missing branch)"
+    exit 1
+  fi
+
+  if [ -z "$repository" ]; then
+    echo "invalid payload (missing repository)"
+    exit 1
+  fi
+}
+
+cleanup_repo_at_ref() {
+  if [ -e "$repo_at_ref" ] && [ -z "${TEST_REPO_AT_REF_DIR}" ]; then
+    rm -r "$repo_at_ref"
+  fi
+}
+
+main() {
+  test_race_conditions=${TEST_RACE_CONDITIONS:-false}
+  payload=$(mktemp $TMPDIR/hg-resource-request.XXXXXX)
+  cat > $payload <&0
+
+  load_pubkey $payload
+  configure_ssl_verification $payload
+
+  set_global_params_from_json
+  validate_params
+
+  cd $source
+
+  if [ -n "$tag" ] && [ ! -f "$tag" ]; then
+    echo "tag file '$tag' does not exist"
+    exit 1
+  fi
+
+  tag_name=""
+  if [ -n "$tag" ]; then
+    tag_name="$(cat $tag)"
+  fi
+  
+  cd $repository
+  # make temporary directory
+  local ref=$(hg identify --id)
+  local repo_at_ref=${TEST_REPO_AT_REF_DIR:-$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX")}
+
+  # add trap to delete temp dir
+  trap cleanup_repo_at_ref EXIT
+  # clone repo up to ref into new dir
+  hg clone -q --rev "$ref" "$source/$repository" "$repo_at_ref" 
+  hg phase --cwd "$repo_at_ref" --force --draft .
+  
+  cd $repo_at_ref
+
+  set_commit_id_to_return "$repo_at_ref"
+  if [ "$rebase" = "true" ]; then
+    while true; do
+      echo "rebasing..."
+
+      hg pull --config extensions.rebase= --config "paths.push-target=$uri" --rebase --branch $branch push-target
+      set_commit_id_to_return "$repo_at_ref"
+
+      # instead of using a file, it would also be possible to write the exit code of
+      # hg push in the subshell to stderr, using file descriptor magic. writing to a
+      # file makes the following lines more readable, though.
+      result_file=$(mktemp /tmp/hg-result.XXXXXX)
+
+      if [ "$test_race_conditions" ]; then
+        sleep 2
+      fi
+
+      echo 0 > $result_file
+      {
+        tag 2>&1 && push_src_and_tags 2>&1 || {
+          echo $? > $result_file
+        }
+      } | tee /tmp/push-failure
+
+      if [ "$(cat $result_file)" = "0" ]; then
+        echo "pushed"
+        break
+      fi
+
+      # failed for reason other than non-fast-forward / fetch-first
+      if ! grep -q '^abort: push creates new remote head' /tmp/push-failure; then
+        echo "failed with non-rebase error"
+        exit 1
+      fi
+
+      echo "rebasing and trying again..."
+    done
+  else
+    tag
+    push_src_and_tags
+  fi
+
+  jq -n "{
+    version: {ref: $(echo $commit_to_return | jq -R .)},
+    metadata: $(hg_metadata $commit_to_return)
+  }" >&3
+}
+
+main

@@ -8,12 +8,6 @@ setUp() {
   export TMPDIR=$(mktemp -d ${TMPDIR_ROOT}/hg-tests.XXXXXX)
 }
 
-get_working_dir_ref() {
-  local dest=$1
-  local commit_id=$(hg identify --cwd "$dest" --id)
-  hg log --cwd "$dest" --limit 1 --rev "$commit_id" --template '{node}'
-}
-
 test_it_can_get_from_url() {
   local repo=$(init_repo)
   local ref=$(make_commit $repo)

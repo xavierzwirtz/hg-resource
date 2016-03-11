@@ -1,0 +1,379 @@
+#!/bin/sh
+
+set -e
+
+source $(dirname $0)/helpers.sh
+
+setUp() {
+  export TMPDIR=$(mktemp -d ${TMPDIR_ROOT}/hg-tests.XXXXXX)
+}
+
+assertTaggedCommitAtTip() {
+  local dest=$1
+  local expected_commit_id=$2
+  local commit_id=$(hg log --cwd "$dest" --limit 1 --rev tip --template '{node}')
+  local message=$(hg log --cwd "$dest" --rev "$commit_id" --template '{desc}')
+  local parent_commit=$(hg log --cwd "$dest" --rev "${commit_id}^" --template '{node}')
+
+  assertEquals "$expected_commit_id" "$parent_commit"
+  
+  local changed_files=$(hg log --cwd "$dest" --rev "$commit_id" --template '{files}')
+  assertEquals ".hgtags" "$changed_files"
+}
+
+# TODO reformat and clean up tests
+
+test_it_can_put_to_url() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local tagged_commit=$(make_commit $repo2)
+  # create a tag to push
+  local ref=$(make_tag $repo2 some-tag)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  put_uri $repo1 $src repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # update working directory in repo1
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+  test "$(get_working_dir_ref $repo1)" = $ref
+  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev some-tag --template '{node}')
+  assertEquals "$tagged_commit" "$actual_commit_id_of_tag"
+}
+
+test_it_can_put_to_url_with_tag() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local ref=$(make_commit $repo2)
+
+  echo some-tag-name > $src/some-tag-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  put_uri_with_tag $repo1 $src some-tag-file repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # switch back to master
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+  assertTaggedCommitAtTip "$repo1" "$ref"
+
+  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev 'some-tag-name' --template '{node}')
+  assertEquals "$ref" "$actual_commit_id_of_tag"
+}
+
+test_it_can_put_to_url_with_tag_from_a_non_tip_working_dir() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local ref1=$(make_commit $repo2)
+  local ref2=$(make_commit $repo2)
+  local ref3=$(make_commit $repo2)
+  hg checkout --cwd $repo2 $ref2
+
+  echo some-tag-name > $src/some-tag-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  put_uri_with_tag $repo1 $src some-tag-file repo | jq -e "
+    .version == {ref: $(echo $ref2 | jq -R .)}
+  "
+
+  # switch back to master
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+  assertTaggedCommitAtTip "$repo1" "$ref2"
+
+  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev 'some-tag-name' --template '{node}')
+  assertEquals "$ref2" "$actual_commit_id_of_tag"
+}
+
+test_it_can_put_to_url_with_tag_and_prefix() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local ref=$(make_commit $repo2)
+
+  echo 1.0 > $src/some-tag-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  put_uri_with_tag_and_prefix $repo1 $src some-tag-file v repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # switch back to master
+  hg checkout --cwd $repo1 default
+  
+  test -e $repo1/some-file
+  assertTaggedCommitAtTip "$repo1" "$ref"
+  test "$(hg log --cwd "$repo1" --rev 'v1.0' --template '{node}')" = $ref
+}
+
+test_it_can_put_to_url_with_tag_and_annotation() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local ref=$(make_commit $repo2)
+
+  echo 1.0 > $src/some-tag-file
+  echo yay > $src/some-annotation-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd "$repo1" default
+
+  put_uri_with_tag_and_annotation $repo1 $src "$src/some-tag-file" "$src/some-annotation-file" repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # switch back to master
+  hg checkout --cwd "$repo1" default
+
+  test -e $repo1/some-file
+
+  assertTaggedCommitAtTip "$repo1" "$ref"
+  
+  test "$(hg log --cwd "$repo1" --rev '1.0' --template '{node}')" = $ref
+  
+  local tag_commit_message=$(hg log --cwd "$repo1" --rev tip --template '{desc}')
+  assertEquals "yay" "$tag_commit_message"
+}
+
+test_it_can_put_to_url_with_rebase() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  # make a commit that will require rebasing
+  local baseref=$(make_commit_to_file $repo1 some-other-file)
+
+  local ref=$(make_commit $repo2)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
+
+  local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX")
+  TEST_REPO_AT_REF_DIR="$rebased_repo"
+  export TEST_REPO_AT_REF_DIR
+  put_uri_with_rebase "$repo1" "$src" "repo" "$rebased_repo" > $response
+  unset TEST_REPO_AT_REF_DIR
+
+  local rebased_ref=$(hg log --cwd "$rebased_repo" --rev tip --template '{node}')
+
+  jq -e "
+    .version == {ref: $(echo $rebased_ref | jq -R .)}
+  " < $response
+
+    jq -e "
+    .metadata[0].value == $(echo $rebased_ref | jq -R .)
+  " < $response
+
+  # switch back to default
+  hg checkout --cwd "$repo1" default
+
+  test -e $repo1/some-file
+  test "$(hg log --cwd $repo1 --rev tip --template '{node}')" = $rebased_ref
+
+  local parent_of_tip=$(hg log --cwd "$repo1" --rev 'tip^' --template '{node}')
+  assertEquals "$baseref" "$parent_of_tip"
+}
+
+test_it_can_put_to_url_with_rebase_with_tag() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  # make a commit that will require rebasing
+  local baseref=$(make_commit_to_file $repo1 some-other-file)
+
+  local ref=$(make_commit $repo2)
+
+  echo some-tag-name > $src/some-tag-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd "$repo1" default
+
+  local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
+
+  local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
+  TEST_REPO_AT_REF_DIR="$rebased_repo"
+  export TEST_REPO_AT_REF_DIR
+  put_uri_with_rebase_with_tag $repo1 $src some-tag-file repo > $response
+  unset TEST_REPO_AT_REF_DIR
+
+  local rebased_ref=$(hg log --cwd "$rebased_repo" --rev 'tip^' --template '{node}')
+
+  jq -e "
+    .version == {ref: $(echo $rebased_ref | jq -R .)}
+  " < $response
+
+  # switch back to master
+  hg checkout --cwd "$repo1" default
+
+  test -e $repo1/some-file
+
+  assertTaggedCommitAtTip "$rebased_repo" "$rebased_ref"
+
+  echo "assert tagged commit passed"
+  local tag_value=$(hg log --cwd "$repo1" --rev some-tag-name --template '{node}')
+  assertEquals "$rebased_ref" "$tag_value"
+}
+
+test_it_can_put_to_url_with_rebase_with_tag_and_prefix() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  # make a commit that will require rebasing
+  local baseref=$(make_commit_to_file $repo1 some-other-file)
+
+  local ref=$(make_commit $repo2)
+
+  echo 1.0 > $src/some-tag-file
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
+
+  local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
+  TEST_REPO_AT_REF_DIR="$rebased_repo"
+  export TEST_REPO_AT_REF_DIR
+  put_uri_with_rebase_with_tag_and_prefix $repo1 $src some-tag-file v repo > $response
+  unset TEST_REPO_AT_REF_DIR
+
+  local rebased_ref=$(hg log --cwd "$rebased_repo" --rev tip^ --template '{node}')
+
+  jq -e "
+    .version == {ref: $(echo $rebased_ref | jq -R .)}
+  " < $response
+
+  # switch back to master
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+
+  assertTaggedCommitAtTip "$repo1" "$rebased_ref"
+
+  test "$(hg log --cwd $repo1 --rev v1.0 --template '{node}')" = $rebased_ref
+}
+
+test_it_tries_to_rebase_repeatedly_in_race_conditions() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  # make a commit that will require rebasing
+  local baseref1=$(make_commit_to_file $repo1 some-other-file)
+
+  local ref=$(make_commit $repo2)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
+
+  background_commit_id_file=$(mktemp /tmp/hg-commit-id.XXXXXX)
+  make_commit_after_1_second $repo1 > $background_commit_id_file &
+
+  local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
+  TEST_REPO_AT_REF_DIR="$rebased_repo"
+  export TEST_REPO_AT_REF_DIR
+  put_uri_with_rebase_and_race_conditions $repo1 $src repo > $response\
+  unset TEST_REPO_AT_REF_DIR
+
+  local baseref2=$(cat $background_commit_id_file)
+  local rebased_ref=$(hg log --cwd "$rebased_repo" --rev tip --template '{node}')
+
+  jq -e "
+    .version == {ref: $(echo $rebased_ref | jq -R .)}
+  " < $response
+
+  # switch back to default
+  hg checkout --cwd "$repo1" default
+
+  test -e $repo1/some-file
+  test "$(hg log --cwd $repo1 --rev tip --template '{node}')" = $rebased_ref
+
+  local parent_of_tip=$(hg log --cwd "$repo1" --rev 'tip^' --template '{node}')
+  local grandparent_of_tip=$(hg log --cwd "$repo1" --rev 'tip^^' --template '{node}')
+
+  assertEquals "$baseref2" "$parent_of_tip"
+  assertEquals "$baseref1" "$grandparent_of_tip"
+}
+
+delete_repository_after_1_second() {
+  local repo=$1
+  sleep 1
+  rm -r $repo
+}
+
+test_it_aborts_on_unknown_push_errors() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  # make a commit that will require rebasing
+  local baseref1=$(make_commit_to_file $repo1 some-other-file)
+
+  local ref=$(make_commit $repo2)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
+
+  delete_repository_after_1_second $repo1 &
+
+  local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
+  TEST_REPO_AT_REF_DIR="$rebased_repo"
+  export TEST_REPO_AT_REF_DIR
+  ! put_uri_with_rebase_and_race_conditions $repo1 $src repo &> $response || fail "expected 'out' to have a non-zero exit code"
+  unset TEST_REPO_AT_REF_DIR
+
+  if ! grep "^failed with non-rebase error" $response; then
+    fail "expected 'out' to abort after an unhandled push error"
+  fi
+}
+
+source $(dirname $0)/shunit2

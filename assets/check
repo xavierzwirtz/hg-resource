@@ -45,7 +45,7 @@ main() {
   cat > $payload <&0
 
   load_pubkey $payload
-  configure_git_ssl_verification $payload
+  configure_ssl_verification $payload
 
   uri=$(jq -r '.source.uri // ""' < $payload)
   branch=$(jq -r '.source.branch // ""' < $payload)
