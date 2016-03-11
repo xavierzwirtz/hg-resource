@@ -229,12 +229,6 @@ test_it_can_check_with_tag_filter_from_a_ref() {
 }
 
 test_it_can_check_from_head_only_fetching_single_branch() {
-  check_branch_exists() {
-    local repo=$1
-    local branch=$2
-    hg log --cwd "$repo" --limit 1 --branch "$branch" &>/dev/null
-  }
-
   local repo=$(init_repo)
   local ref=$(make_commit $repo)
   local cachedir="$TMPDIR/hg-resource-repo-cache"
@@ -324,6 +318,45 @@ test_user_cannot_inject_query_through_exclude_param() {
 
   local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
   assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging'$")"
+}
+
+test_backslash_is_escaped_in_include_param() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit_to_file $repo "'file-a\\'")
+  local ref2=$(make_commit_to_file $repo "'file-b\\'")
+  local ref3=$(make_commit_to_file $repo "file-c'")
+
+  local expected1=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]" | jq ".")
+  assertEquals "$expected1" "$(check_uri_paths $repo "'file-b\\'")"
+
+  local expected2=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
+  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+
+  local ref4=$(make_commit_to_file $repo "'file-b\\'")
+
+  local expected3=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
+  assertEquals "$expected3" "$(check_uri_paths $repo "file-c'")"
+
+  local ref5=$(make_commit_to_file $repo "file-c'")
+
+  local expected4=$(echo "[
+      {\"ref\": $(echo $ref3 | jq -R .)},
+      {\"ref\": $(echo $ref5 | jq -R .)}
+    ]" | jq ".")
+  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+}
+
+ test_backslash_is_escaped_in_tag_filter_param() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+  local ref2=$(make_annotated_tag $repo "1.0-staging\\'" "a tag")
+  local ref3=$(make_commit $repo)
+  local ref4=$(make_annotated_tag $repo "1.0-production\\'" "another tag")
+  local ref5=$(make_commit $repo)
+  local ref6=$(make_annotated_tag $repo "1.1-staging\\'" "much tag")
+
+  local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
+  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging\\'$")"
 }
 
 source $(dirname $0)/shunit2

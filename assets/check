@@ -14,11 +14,14 @@ PATH=/usr/local/bin:$PATH
 
 union_of_files_from() {
   make_file_query_fragment() {
-    # TODO add proper escaping, e.g. can't cope with \' in parameter. same for tag_filter.
-    jq -r "\"file('re:\" + (($1 // [])[] | gsub(\"'\"; \"\\\'\")) + \"')\"" | tr '\n' '|' | sed 's/|$//'
+    jq -r "($1 // [])[]" | escape_backslash_and_apostrophe | sed "s/\(.*\)/file('re:\1')/" | tr '\n' '|' | sed 's/|$//'
   }
 
   make_file_query_fragment $1 < $payload
+}
+
+escape_backslash_and_apostrophe() {
+  sed 's/\\/\\\\\\\\/g' | sed "s/'/\\\'/g"
 }
 
 get_include_query_fragment() {
@@ -51,7 +54,7 @@ main() {
   branch=$(jq -r '.source.branch // ""' < $payload)
   include_fragment=$(get_include_query_fragment)
   exclude_fragment=$(get_exclude_query_fragment)
-  tag_filter=$(jq -r "(.source.tag_filter // \"\") | gsub(\"'\"; \"\\\'\")" < $payload)
+  tag_filter=$(cat $payload | jq -r "(.source.tag_filter // \"\")" | escape_backslash_and_apostrophe)
   ref=$(jq -r '.version.ref // ""' < $payload)
 
   destination=$TMPDIR/hg-resource-repo-cache
