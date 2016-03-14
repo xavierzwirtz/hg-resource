@@ -1,13 +1,13 @@
-# Git Resource
+# Mercurial Resource
 
-Tracks the commits in a [git](http://git-scm.com/) repository.
+Tracks the commits in a [Mercurial](https://www.mercurial-scm.org/) repository.
 
 
 ## Source Configuration
 
 * `uri`: *Required.* The location of the repository.
 
-* `branch`: *Required.* The branch to track.
+* `branch`: The branch to track, defaults to `default`.
 
 * `private_key`: *Optional.* Private key to use when pulling/pushing.
     Example:
@@ -20,7 +20,7 @@ Tracks the commits in a [git](http://git-scm.com/) repository.
       -----END RSA PRIVATE KEY-----
     ```
 
-* `paths`: *Optional.* If specified (as a list of glob patterns), only changes
+* `paths`: *Optional.* If specified (as a list of regular expressions), only changes
   to the specified files will yield new versions from `check`.
 
 * `ignore_paths`: *Optional.* The inverse of `paths`; changes to the specified
@@ -38,9 +38,7 @@ Tracks the commits in a [git](http://git-scm.com/) repository.
   `GIT_SSL_NO_VERIFY=true`.
 
 * `tag_filter`: *Optional*. If specified, the resource will only detect commits
-  that have a tag matching the specified expression. Patterns are
-  [glob(7)](http://man7.org/linux/man-pages/man7/glob.7.html) compatible (as
-  in, bash compatible).
+  that have a tag matching the specified regular expression.
 
 ### Example
 
@@ -49,23 +47,16 @@ Resource configuration for a private repo:
 ``` yaml
 resources:
 - name: source-code
-  type: git
+  type: hg
   source:
-    uri: git@github.com:concourse/git-resource.git
-    branch: master
+    uri: https://hg.mozilla.org/mozilla-central/
+    branch: default
     private_key: |
       -----BEGIN RSA PRIVATE KEY-----
       MIIEowIBAAKCAQEAtCS10/f7W7lkQaSgD/mVeaSOvSF9ql4hf/zfMwfVGgHWjj+W
       <Lots more text>
       DWiJL+OFeg9kawcUL6hQ8JeXPhlImG6RTUffma9+iGQyyBMCGd1l
       -----END RSA PRIVATE KEY-----
-```
-
-Fetching a repo with only 100 commits of history:
-
-``` yaml
-- get: source-code
-  params: {depth: 100}
 ```
 
 Pushing local commits to the repo:
@@ -83,7 +74,7 @@ Pushing local commits to the repo:
 
 The repository is cloned (or pulled if already present), and any commits
 made after the given version are returned. If no version is given, the ref
-for `HEAD` is returned.
+for `tip` is returned.
 
 Any commits that contain the string `[ci skip]` will be ignored. This
 allows you to commit to your repository without triggering a new version.
@@ -93,26 +84,19 @@ allows you to commit to your repository without triggering a new version.
 Clones the repository to the destination, and locks it down to a given ref.
 Returns the resulting ref as the version.
 
-Submodules are initialized and updated recursively.
-
-
-#### Parameters
-
-* `depth`: *Optional.* If a positive integer is given, *shallow* clone the
-  repository using the `--depth` option. Using this flag voids your warranty.
-  Some things will stop working unless we have the entire history.
-
-* `submodules`: *Optional.* If `none`, submodules will not be
-  fetched. If specified as a list of paths, only the given paths will be
-  fetched. If not specified, or if `all` is explicitly specified, all
-  submodules are fetched.
+Subrepositories are initialized and updated recursively, as Mercurial does
+by default.
 
 
 ### `out`: Push to a repository.
 
-Push the checked-out reference to the source's URI and branch. All tags are
-also pushed to the source. If a fast-forward for the branch is not possible
-and the `rebase` parameter is not provided, the push will fail.
+Push the checked-out reference to the source's URI and branch. If a
+fast-forward for the branch is not possible and the `rebase` parameter is not
+provided, the push will fail. The `tag` option can only be used in
+combination with `rebase`, as tagging in Mercurial involves adding a new
+commit. Specifically, `out` clones the repository and strips all descendants
+of the checked-out reference, and then adds the tag commit as the new tip.
+
 
 #### Parameters
 
@@ -121,17 +105,9 @@ and the `rebase` parameter is not provided, the push will fail.
 * `rebase`: *Optional.* If pushing fails with non-fast-forward, continuously
   attempt rebasing and pushing.
 
-* `tag`: *Optional* If this is set then HEAD will be tagged. The value should be
-  a path to a file containing the name of the tag.
-
-* `only_tag`: *Optional* When set to 'true' push only the tags of a repo.
+* `tag`: *Optional, requires `rebase`* If this is set then the checked-out reference will be
+  tagged. The value should be a path to a file containing the name of the tag.
 
 * `tag_prefix`: *Optional.* If specified, the tag read from the file will be
 prepended with this string. This is useful for adding `v` in front of
 version numbers.
-
-* `annotate`: *Optional.* If specified the tag will be an
-  [annotated](https://git-scm.com/book/en/v2/Git-Basics-Tagging#Annotated-Tags)
-  tag rather than a
-  [lightweight](https://git-scm.com/book/en/v2/Git-Basics-Tagging#Lightweight-Tags)
-  tag. The value should be a path to a file containing the annotation message.
