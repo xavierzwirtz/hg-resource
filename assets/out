@@ -20,13 +20,7 @@ PATH=/usr/local/bin:$PATH
 
 tag() {
   if [ -n "$tag_name" ]; then
-    if [ -n "$annotation_file" ]; then
-      # TODO remove annotation -- tag commit message should be the default message
-      local content=$(cat "$annotation_file")
-      hg tag "${tag_prefix}${tag_name}" --message "$content"
-    else
-      hg tag "${tag_prefix}${tag_name}"
-    fi
+    hg tag "${tag_prefix}${tag_name}"
   fi
 }
 
@@ -46,7 +40,6 @@ set_global_params_from_json() {
   tag=$(jq -r '.params.tag // ""' < $payload)
   tag_prefix=$(jq -r '.params.tag_prefix // ""' < $payload)
   rebase=$(jq -r '.params.rebase // false' < $payload)
-  annotation_file=$(jq -r '.params.annotate // ""' < $payload)
 }
 
 validate_params() {

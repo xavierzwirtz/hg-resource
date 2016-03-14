@@ -135,38 +135,6 @@ test_it_can_put_to_url_with_tag_and_prefix() {
   test "$(hg log --cwd "$repo1" --rev 'v1.0' --template '{node}')" = $ref
 }
 
-test_it_can_put_to_url_with_tag_and_annotation() {
-  local repo1=$(init_repo)
-
-  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
-  local repo2=$src/repo
-  hg clone $repo1 $repo2
-
-  local ref=$(make_commit $repo2)
-
-  echo 1.0 > $src/some-tag-file
-  echo yay > $src/some-annotation-file
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd "$repo1" default
-
-  put_uri_with_tag_and_annotation $repo1 $src "$src/some-tag-file" "$src/some-annotation-file" repo | jq -e "
-    .version == {ref: $(echo $ref | jq -R .)}
-  "
-
-  # switch back to master
-  hg checkout --cwd "$repo1" default
-
-  test -e $repo1/some-file
-
-  assertTaggedCommitAtTip "$repo1" "$ref"
-  
-  test "$(hg log --cwd "$repo1" --rev '1.0' --template '{node}')" = $ref
-  
-  local tag_commit_message=$(hg log --cwd "$repo1" --rev tip --template '{desc}')
-  assertEquals "yay" "$tag_commit_message"
-}
-
 test_it_can_put_to_url_with_rebase() {
   local repo1=$(init_repo)
 
