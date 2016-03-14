@@ -24,7 +24,7 @@ test_it_can_check_from_a_ref() {
   local ref3=$(make_commit $repo)
 
   local expected=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}, {\"ref\": $(echo $ref3 | jq -R .)}]"|jq ".")
-  assertEquals "$expected" "$(check_uri_from $repo $ref1)"
+  assertEquals "$expected" "$(check_uri_from $repo $ref1 | jq .)"
 }
 
 test_it_can_check_from_a_bogus_sha() {
