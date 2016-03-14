@@ -7,6 +7,7 @@ not_installed() {
 }
 
 git_resource_dir=$(cd $(dirname $0)/.. && pwd)
+go_module_dir=$(cd $(dirname $0)/../hgresource && pwd)
 
 if not_installed docker; then
   echo "# docker is not installed! run the following commands:"
@@ -17,6 +18,9 @@ if not_installed docker; then
   echo "    docker login"
   exit 1
 fi
+
+cd $go_module_dir
+GOOS=linux go build
 
 cd $git_resource_dir
 docker build --rm .
