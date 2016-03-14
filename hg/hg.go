@@ -18,7 +18,7 @@ type Repository struct {
 func (self *Repository) GetLatestCommitId() (string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	revSet := fmt.Sprintf("last((%s) - (%s))", include, exclude)
+	revSet := fmt.Sprintf("last((%s) - (%s) - desc('[ci skip]'))", include, exclude)
 
 	_, stdout, stderr, err := runHg([]string{
 		"log",
@@ -36,7 +36,7 @@ func (self *Repository) GetLatestCommitId() (string, error) {
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	revSet := fmt.Sprintf("(descendants(%s) - %s) & ((%s) - (%s))", commitId, commitId, include, exclude)
+	revSet := fmt.Sprintf("(descendants(%s) - %s) & ((%s) - (%s)) - desc('[ci skip]')", commitId, commitId, include, exclude)
 
 	_, stdout, stderr, err := runHg([]string{
 		"log",

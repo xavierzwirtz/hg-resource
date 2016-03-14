@@ -160,7 +160,7 @@ test_it_skips_marked_commits_with_no_version() {
      {\"ref\": $(echo $ref1 | jq -R .)}
    ]" | jq ".")
 
-  assertEquals "$expected" "$(check_uri $repo)"
+  assertEquals "$expected" "$(check_uri $repo | jq '.')"
 }
 
 test_it_fails_if_key_has_password() {
