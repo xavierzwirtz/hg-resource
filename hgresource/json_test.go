@@ -25,7 +25,8 @@ var _ = Describe("Json", func() {
 						"path/5",
 						"path/6"
 					],
-					"branch": "a_branch"
+					"branch": "a_branch",
+					"tag_filter": "staging"
 				},
 				"version": {
 					"ref": "abc"
@@ -79,6 +80,7 @@ var _ = Describe("Json", func() {
 			Expect(result.Source.ExcludePaths[1]).To(Equal("path/5"))
 			Expect(result.Source.ExcludePaths[2]).To(Equal("path/6"))
 			Expect(result.Source.Branch).To(Equal("a_branch"))
+			Expect(result.Source.TagFilter).To(Equal("staging"))
 			Expect(result.Version.Ref).To(Equal("abc"))
 		})
 	})

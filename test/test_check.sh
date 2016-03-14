@@ -24,7 +24,7 @@ test_it_can_check_from_a_ref() {
   local ref3=$(make_commit $repo)
 
   local expected=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}, {\"ref\": $(echo $ref3 | jq -R .)}]"|jq ".")
-  assertEquals "$expected" "$(check_uri_from $repo $ref1 | jq .)"
+  assertEquals "$expected" "$(check_uri_from $repo $ref1 | jq '.')"
 }
 
 test_it_can_check_from_a_bogus_sha() {
@@ -33,7 +33,7 @@ test_it_can_check_from_a_bogus_sha() {
   local ref2=$(make_commit $repo)
 
   local expected=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]"|jq ".") 
-  assertEquals "$expected" "$(check_uri_from $repo bogus-ref | jq .)"
+  assertEquals "$expected" "$(check_uri_from $repo bogus-ref | jq '.')"
 }
 
 test_it_skips_ignored_paths() {
@@ -42,62 +42,37 @@ test_it_skips_ignored_paths() {
   local ref2=$(make_commit_to_file $repo file-b)
   local ref3=$(make_commit_to_file $repo file-c)
 
+  hg log --stat --cwd $repo
   local expected1=$(echo "[
   		{\"ref\": $(echo $ref2 | jq -R .)}
   	]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_ignoring $repo file-c)"
+  assertEquals "$expected1" "$(check_uri_ignoring $repo file-c | jq '.')"
 
   local expected2=$(echo "[
   		{\"ref\": $(echo $ref2 | jq -R .)}
   	]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_ignoring $repo $ref1 file-c)"
+  assertEquals "$expected2" "$(check_uri_from_ignoring $repo $ref1 file-c | jq '.')"
 
   local ref4=$(make_commit_to_file $repo file-b)
 
   local expected3=$(echo "[
   		{\"ref\": $(echo $ref4 | jq -R .)}
 		]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_ignoring $repo file-c)"
+  assertEquals "$expected3" "$(check_uri_ignoring $repo file-c | jq '.')"
 
   local expected4=$(echo "[
       {\"ref\": $(echo $ref2 | jq -R .)},
       {\"ref\": $(echo $ref4 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_from_ignoring $repo $ref1 file-c)"
+  assertEquals "$expected4" "$(check_uri_from_ignoring $repo $ref1 file-c | jq '.')"
 
   local ref5=$(make_commit_to_file $repo file-d)
 
   local expected5=$(echo "[
     {\"ref\": $(echo $ref5 | jq -R .)}
   ]" | jq ".")
-  assertEquals "$expected5" "$(check_uri_from_ignoring $repo $ref1 file-c file-b)"
+  assertEquals "$expected5" "$(check_uri_from_ignoring $repo $ref1 file-c file-b | jq '.')"
 
-}
-
-test_it_checks_given_paths() {
-  local repo=$(init_repo)
-  local ref1=$(make_commit_to_file $repo file-a)
-  local ref2=$(make_commit_to_file $repo file-b)
-  local ref3=$(make_commit_to_file $repo file-c)
-  
-  local expected1=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths $repo file-b)"
-
-  local expected2=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 file-c)"
- 
-  local ref4=$(make_commit_to_file $repo file-b)
-
-  local expected3=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths $repo file-c)"
-
-  local ref5=$(make_commit_to_file $repo file-c)
-
-  local expected4=$(echo "[
-      {\"ref\": $(echo $ref3 | jq -R .)},
-      {\"ref\": $(echo $ref5 | jq -R .)}
-    ]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 file-c)"
 }
 
 test_it_checks_given_paths() {
@@ -107,15 +82,15 @@ test_it_checks_given_paths() {
   local ref3=$(make_commit_to_file $repo file-c)
 
   local expected1=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths $repo file-c)"
+  assertEquals "$expected1" "$(check_uri_paths $repo file-c | jq '.')"
 
   local expected2=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 file-c)"
+  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 file-c | jq '.')"
 
   local ref4=$(make_commit_to_file $repo file-b)
 
   local expected3=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths $repo file-c)"
+  assertEquals "$expected3" "$(check_uri_paths $repo file-c | jq '.')"
 
   local ref5=$(make_commit_to_file $repo file-c)
 
@@ -123,7 +98,7 @@ test_it_checks_given_paths() {
       {\"ref\": $(echo $ref3 | jq -R .)},
       {\"ref\": $(echo $ref5 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 file-c)"
+  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 file-c | jq '.')"
 }
 
 test_it_checks_given_ignored_paths() {
@@ -133,20 +108,20 @@ test_it_checks_given_ignored_paths() {
   local ref3=$(make_commit_to_file $repo some-file)
 
   local expected1=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths_ignoring $repo 'file-.*' file-b)"
+  assertEquals "$expected1" "$(check_uri_paths_ignoring $repo 'file-.*' file-b | jq '.')"
 
   local expected2=$(echo "[]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b')"
+  assertEquals "$expected2" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b' | jq '.')"
 
   local ref4=$(make_commit_to_file $repo file-b)
 
   local expected3=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths_ignoring $repo 'file-.*' 'file-b')"
+  assertEquals "$expected3" "$(check_uri_paths_ignoring $repo 'file-.*' 'file-b' | jq '.')"
 
   local ref5=$(make_commit_to_file $repo file-a)
 
   local expected4=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_paths_ignoring $repo 'file-.*' 'file-b')"
+  assertEquals "$expected4" "$(check_uri_paths_ignoring $repo 'file-.*' 'file-b' | jq '.')"
 
   local ref6=$(make_commit_to_file $repo file-c)
 
@@ -156,12 +131,12 @@ test_it_checks_given_ignored_paths() {
       {\"ref\": $(echo $ref5 | jq -R .)},
       {\"ref\": $(echo $ref6 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected5" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b')"
+  assertEquals "$expected5" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b' | jq '.')"
 
   local expected6=$(echo "[
      {\"ref\": $(echo $ref5 | jq -R .)}
    ]" | jq ".")
-  assertEquals "$expected6" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b' 'file-c')"
+  assertEquals "$expected6" "$(check_uri_from_paths_ignoring $repo $ref1 'file-.*' 'file-b' 'file-c' | jq '.')"
 }
 
 test_it_skips_marked_commits() {
@@ -172,7 +147,7 @@ test_it_skips_marked_commits() {
    
   local expected=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
   
-  assertEquals "$expected" "$(check_uri_from $repo $ref1)"
+  assertEquals "$expected" "$(check_uri_from $repo $ref1 | jq '.')"
 }
 
 test_it_skips_marked_commits_with_no_version() {

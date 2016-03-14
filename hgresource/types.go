@@ -6,6 +6,7 @@ type Source struct {
 	IncludePaths []string `json:"paths"`
 	ExcludePaths []string `json:"ignore_paths"`
 	Branch string `json:"branch"`
+	TagFilter string `json:"tag_filter"`
 }
 
 type Version struct {

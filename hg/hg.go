@@ -9,13 +9,21 @@ import (
 
 type Repository struct {
 	Path string
+	Branch string
+	IncludePaths []string
+	ExcludePaths []string
+	TagFilter string
 }
 
 func (self *Repository) GetLatestCommitId() (string, error) {
+	include := self.makeIncludeQueryFragment()
+	exclude := self.makeExcludeQueryFragment()
+	revSet := fmt.Sprintf("last((%s) - (%s))", include, exclude)
+
 	_, stdout, stderr, err := runHg([]string{
 		"log",
 		"--cwd", self.Path,
-		"--rev", "tip",
+		"--rev", revSet,
 		"--template", "{node}",
 	})
 
@@ -26,7 +34,10 @@ func (self *Repository) GetLatestCommitId() (string, error) {
 }
 
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
-	revSet := fmt.Sprintf("descendants(%s) - %s", commitId, commitId)
+	include := self.makeIncludeQueryFragment()
+	exclude := self.makeExcludeQueryFragment()
+	revSet := fmt.Sprintf("(descendants(%s) - %s) & ((%s) - (%s))", commitId, commitId, include, exclude)
+
 	_, stdout, stderr, err := runHg([]string{
 		"log",
 		"--cwd", self.Path,
@@ -37,7 +48,13 @@ func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	if err != nil {
 		return []string{}, fmt.Errorf("Error getting descendant commits of %s: %s\nStderr: %s", commitId, err, stderr)
 	}
-	commits := strings.Split(strings.Trim(stdout, "\n"), "\n")
+
+	trimmed := strings.Trim(stdout, "\n\r ")
+	if len(trimmed) == 0 {
+		return []string{}, nil
+	}
+
+	commits := strings.Split(trimmed, "\n")
 	return commits, nil
 }
 
@@ -52,4 +69,34 @@ func runHg(args []string) (cmd *exec.Cmd, stdout string, stderr string, err erro
 	stdout = outBuf.String()
 	stderr = errBuf.String()
 	return
+}
+
+func (self *Repository) makeIncludeQueryFragment() string {
+	if len(self.IncludePaths) == 0 {
+		return "all()"
+	} else {
+		return unionOfPaths(self.IncludePaths)
+	}
+}
+
+func (self *Repository) makeExcludeQueryFragment() string {
+	if len(self.ExcludePaths) == 0 {
+		return "not all()"
+	} else {
+		return unionOfPaths(self.ExcludePaths)
+	}
+}
+
+func unionOfPaths(paths []string) string {
+	escapedPaths := make([]string, len(paths))
+	for i, path := range(paths) {
+		escapedPaths[i] = "file('re:" + escapePath(path) + "')"
+	}
+	return strings.Join(escapedPaths, "|")
+}
+
+func escapePath(path string) string {
+	backslashesEscaped := strings.Replace(path, "\\", "\\\\", -1)
+	quotesEscaped := strings.Replace(backslashesEscaped, "'", "\\'", -1)
+	return quotesEscaped
 }

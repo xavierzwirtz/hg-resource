@@ -30,6 +30,10 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 
 	repo := hg.Repository{
 		Path: params.Source.Uri,
+		Branch: params.Source.Branch,
+		IncludePaths: params.Source.IncludePaths,
+		ExcludePaths: params.Source.ExcludePaths,
+		TagFilter: params.Source.TagFilter,
 	}
 
 	switch true {
