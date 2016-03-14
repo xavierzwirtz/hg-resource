@@ -8,7 +8,7 @@ var cmdOut = &Command{
 	Run: runOut,
 }
 
-func runOut(args []string, outWriter io.Writer, errWriter io.Writer) int {
+func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
 	errWriter.Write([]byte("Not implemented"))
 	return 1
 }

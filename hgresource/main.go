@@ -15,27 +15,27 @@ import (
 const usageTemplate = "Usage: hgresource <%s> [arguments]"
 
 type Command struct {
-Name string
-Run  func([]string, io.Writer, io.Writer) int
+	Name string
+	Run  func([]string, io.Reader, io.Writer, io.Writer) int
 }
 
 var commands = []*Command{
-cmdCheck,
+	cmdCheck,
 	cmdIn,
 	cmdOut,
 }
 
 func main() {
-	status := run(os.Args, os.Stdout, os.Stderr)
+	status := run(os.Args, os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(status)
 }
 
-func run(args []string, outWriter io.Writer, errWriter io.Writer) int {
+func run(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
 	// first, try to dispatch by application name
 	appName := path.Base(args[0])
 	handler, err := getHandler(appName, args[1:], outWriter, errWriter)
 	if err == nil {
-		return handler(args, outWriter, errWriter)
+		return handler(args, inReader, outWriter, errWriter)
 	}
 
 	// then, check the first argument
@@ -44,7 +44,7 @@ func run(args []string, outWriter io.Writer, errWriter io.Writer) int {
 		if err == nil {
 			argsCopy := []string{fmt.Sprintf("%s %s", path.Base(args[0]), args[1])}
 			argsCopy = append(argsCopy, args[2:]...)
-			return handler(argsCopy, outWriter, errWriter)
+			return handler(argsCopy, inReader, outWriter, errWriter)
 		}
 	}
 
@@ -52,7 +52,7 @@ func run(args []string, outWriter io.Writer, errWriter io.Writer) int {
 	return 2
 }
 
-func getHandler(name string, args []string, outWriter io.Writer, errWriter io.Writer) (func([]string, io.Writer, io.Writer) int, error) {
+func getHandler(name string, args []string, outWriter io.Writer, errWriter io.Writer) (func([]string, io.Reader, io.Writer, io.Writer) int, error) {
 	for _, cmd := range (commands) {
 		if cmd.Name == name {
 			return cmd.Run, nil

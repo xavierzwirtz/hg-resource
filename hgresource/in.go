@@ -11,7 +11,7 @@ var cmdIn = &Command{
 	Run: runIn,
 }
 
-func runIn(args []string, outWriter io.Writer, errWriter io.Writer) int {
+func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
 	if len(args) < 2 {
 		inUsage(args[0], errWriter)
 		return 2

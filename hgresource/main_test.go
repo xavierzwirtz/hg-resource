@@ -4,20 +4,21 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
+	"bytes"
 )
 
 var _ = Describe("Main", func() {
 	var stderr *gbytes.Buffer
 	var stdout *gbytes.Buffer
 	Describe("Command line argument parsing", func() {
-
+		emptyBuf := new(bytes.Buffer)
 		Context("When run with 'hgresource' as application name", func() {
 			Context("without any subcommand", func() {
 				BeforeEach(func() {
 					stderr = gbytes.NewBuffer()
 					stdout = gbytes.NewBuffer()
 					args := []string{"hgresource"}
-					run(args, stdout, stderr)
+					run(args, emptyBuf, stdout, stderr)
 				})
 
 				It("should print the list of subcommands", func() {
@@ -30,7 +31,7 @@ var _ = Describe("Main", func() {
 					stderr = gbytes.NewBuffer()
 					stdout = gbytes.NewBuffer()
 					args := []string{"hgresource", "in"}
-					run(args, stdout, stderr)
+					run(args, emptyBuf, stdout, stderr)
 				})
 
 				It("should run the subcommand", func() {
@@ -44,7 +45,7 @@ var _ = Describe("Main", func() {
 				stderr = gbytes.NewBuffer()
 				stdout = gbytes.NewBuffer()
 				args := []string{"in"}
-				run(args, stdout, stderr)
+				run(args, emptyBuf, stdout, stderr)
 			})
 
 			It("should run the corresponding subcommand", func() {

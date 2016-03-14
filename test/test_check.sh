@@ -14,7 +14,7 @@ test_it_can_check_from_head() {
 
   local expected=$(echo "[{\"ref\": $(echo $ref | jq -R .)}]"|jq ".")
 
-  assertEquals "$expected" "$(check_uri $repo)"
+  assertEquals "$expected" "$(check_uri $repo | jq '.')"
 }
 
 test_it_can_check_from_a_ref() {
