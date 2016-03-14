@@ -33,7 +33,7 @@ test_it_can_check_from_a_bogus_sha() {
   local ref2=$(make_commit $repo)
 
   local expected=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]"|jq ".") 
-  assertEquals "$expected" "$(check_uri_from $repo bogus-ref)"
+  assertEquals "$expected" "$(check_uri_from $repo bogus-ref | jq .)"
 }
 
 test_it_skips_ignored_paths() {

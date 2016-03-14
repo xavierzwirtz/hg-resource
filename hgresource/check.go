@@ -69,8 +69,8 @@ func writeLatestCommit(repo *hg.Repository, outWriter io.Writer, errWriter io.Wr
 func WriteCommitsSince(parentCommit string, repo *hg.Repository, outWriter io.Writer, errWriter io.Writer) int {
 	commits, err := repo.GetDescendantsOf(parentCommit)
 	if err != nil {
-		fmt.Fprintln(errWriter, err)
-		return 1
+		// commit id not found -- return latest commit as fallback
+		return writeLatestCommit(repo, outWriter, errWriter)
 	}
 
 	commitList := make(VersionList, len(commits))
