@@ -28,8 +28,6 @@ configure_ssl_verification $payload
 uri=$(jq -r '.source.uri // ""' < $payload)
 branch=$(jq -r '.source.branch // ""' < $payload)
 ref=$(jq -r '.version.ref // "tip"' < $payload)
-fetch=$(jq -r '(.params.fetch // [])[]' < $payload)
-submodules=$(jq -r '(.params.submodules // "all")' < $payload)
 
 if [ -z "$uri" ]; then
   echo "invalid payload (missing uri):" >&2
