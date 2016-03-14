@@ -50,7 +50,7 @@ test_it_can_put_to_url() {
   assertEquals "$tagged_commit" "$actual_commit_id_of_tag"
 }
 
-test_it_can_put_to_url_with_tag() {
+test_it_aborts_when_trying_to_tag_without_rebase_option() {
   local repo1=$(init_repo)
 
   local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
@@ -64,18 +64,7 @@ test_it_can_put_to_url_with_tag() {
   # cannot push to repo while it's checked out to a branch
   hg checkout --cwd $repo1 default
 
-  put_uri_with_tag $repo1 $src some-tag-file repo | jq -e "
-    .version == {ref: $(echo $ref | jq -R .)}
-  "
-
-  # switch back to master
-  hg checkout --cwd $repo1 default
-
-  test -e $repo1/some-file
-  assertTaggedCommitAtTip "$repo1" "$ref"
-
-  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev 'some-tag-name' --template '{node}')
-  assertEquals "$ref" "$actual_commit_id_of_tag"
+  ! put_uri_with_tag $repo1 $src some-tag-file repo || fail "expected tagging to fail without rebase option"
 }
 
 test_it_can_put_to_url_with_tag_from_a_non_tip_working_dir() {
@@ -95,7 +84,7 @@ test_it_can_put_to_url_with_tag_from_a_non_tip_working_dir() {
   # cannot push to repo while it's checked out to a branch
   hg checkout --cwd $repo1 default
 
-  put_uri_with_tag $repo1 $src some-tag-file repo | jq -e "
+  put_uri_with_rebase_with_tag $repo1 $src some-tag-file repo | jq -e "
     .version == {ref: $(echo $ref2 | jq -R .)}
   "
 
@@ -107,32 +96,6 @@ test_it_can_put_to_url_with_tag_from_a_non_tip_working_dir() {
 
   local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev 'some-tag-name' --template '{node}')
   assertEquals "$ref2" "$actual_commit_id_of_tag"
-}
-
-test_it_can_put_to_url_with_tag_and_prefix() {
-  local repo1=$(init_repo)
-
-  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
-  local repo2=$src/repo
-  hg clone $repo1 $repo2
-
-  local ref=$(make_commit $repo2)
-
-  echo 1.0 > $src/some-tag-file
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
-  put_uri_with_tag_and_prefix $repo1 $src some-tag-file v repo | jq -e "
-    .version == {ref: $(echo $ref | jq -R .)}
-  "
-
-  # switch back to master
-  hg checkout --cwd $repo1 default
-  
-  test -e $repo1/some-file
-  assertTaggedCommitAtTip "$repo1" "$ref"
-  test "$(hg log --cwd "$repo1" --rev 'v1.0' --template '{node}')" = $ref
 }
 
 test_it_can_put_to_url_with_rebase() {

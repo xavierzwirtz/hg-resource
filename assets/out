@@ -57,6 +57,11 @@ validate_params() {
     echo "invalid payload (missing repository)"
     exit 1
   fi
+
+  if [[ -n "$tag" ]] && [[ "$rebase" == "false" ]]; then
+    echo "tag parameter requires rebase option: tagging in Mercurial works by inserting a commit"
+    exit 1
+  fi
 }
 
 cleanup_repo_at_ref() {
@@ -139,8 +144,6 @@ main() {
       echo "rebasing and trying again..."
     done
   else
-    # TODO test behavior of tag without rebase -- should we check for this combination and throw an error?
-    tag
     push_src_and_tags
   fi
 
