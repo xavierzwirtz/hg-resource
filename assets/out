@@ -20,16 +20,13 @@ PATH=/usr/local/bin:$PATH
 
 tag() {
   if [ -n "$tag_name" ]; then
-    current_commit=$(hg identify --id)
-    hg checkout tip
-    # TODO add trap to return to $current_commit
     if [ -n "$annotation_file" ]; then
+      # TODO remove annotation -- tag commit message should be the default message
       local content=$(cat "$annotation_file")
-      hg tag --rev "$current_commit" "${tag_prefix}${tag_name}" --message "$content"
+      hg tag "${tag_prefix}${tag_name}" --message "$content"
     else
-      hg tag --rev "$current_commit" "${tag_prefix}${tag_name}"
+      hg tag "${tag_prefix}${tag_name}"
     fi
-    hg checkout "$current_commit"
   fi
 }
 
@@ -149,6 +146,7 @@ main() {
       echo "rebasing and trying again..."
     done
   else
+    # TODO test behavior of tag without rebase -- should we check for this combination and throw an error?
     tag
     push_src_and_tags
   fi
