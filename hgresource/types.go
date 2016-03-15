@@ -7,6 +7,7 @@ type Source struct {
 	ExcludePaths []string `json:"ignore_paths"`
 	Branch string `json:"branch"`
 	TagFilter string `json:"tag_filter"`
+	SkipSslVerification bool `json:"skip_ssl_verification"`
 }
 
 type Version struct {

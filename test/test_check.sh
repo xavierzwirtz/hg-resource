@@ -363,7 +363,7 @@ test_it_can_disable_ssl_certificate_verification() {
   $(sleep 5; kill $serve_pid) &
 
   local expected=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
-  assertEquals "$expected" "$(check_uri_insecure https://127.0.0.1:8000/)"
+  assertEquals "$expected" "$(check_uri_insecure https://127.0.0.1:8000/ | jq '.')"
 
   kill $serve_pid
   sleep 0.1

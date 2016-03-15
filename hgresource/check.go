@@ -6,6 +6,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path"
+)
+
+const (
+	defaultBranch = "default"
 )
 
 var cmdCheckName string = "check"
@@ -29,11 +34,15 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 	}
 
 	repo := hg.Repository{
-		Path: params.Source.Uri,
+		Path: getCacheDir(),
 		Branch: params.Source.Branch,
 		IncludePaths: params.Source.IncludePaths,
 		ExcludePaths: params.Source.ExcludePaths,
 		TagFilter: params.Source.TagFilter,
+	}
+
+	if len(repo.Branch) == 0 {
+		repo.Branch = defaultBranch
 	}
 
 	if len(params.Source.PrivateKey) != 0 {
@@ -44,17 +53,26 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 		}
 	}
 
-	switch true {
-	case params.Source.Uri == "":
+	if len(params.Source.Uri) == 0 {
 		fmt.Fprintln(errWriter, "Repository URI must be provided")
 		return 1
-	case params.Version.Ref == "" && params.Source.Uri != "":
-		return writeLatestCommit(&repo, outWriter, errWriter)
-	case params.Version.Ref != "" && params.Source.Uri != "":
-		return WriteCommitsSince(params.Version.Ref, &repo, outWriter, errWriter)
-	default:
-		panic("Unreachable statement")
 	}
+
+	err = repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	if err != nil {
+		fmt.Fprintln(errWriter, err)
+		return 1
+	}
+
+	if len(params.Version.Ref) == 0 {
+		return writeLatestCommit(&repo, outWriter, errWriter)
+	} else {
+		return writeCommitsSince(params.Version.Ref, &repo, outWriter, errWriter)
+	}
+}
+
+func getCacheDir() string {
+	return path.Join(getTempDir(), "hg-resource-repo-cache")
 }
 
 func writeLatestCommit(repo *hg.Repository, outWriter io.Writer, errWriter io.Writer) int {
@@ -78,7 +96,7 @@ func writeLatestCommit(repo *hg.Repository, outWriter io.Writer, errWriter io.Wr
 	return 0
 }
 
-func WriteCommitsSince(parentCommit string, repo *hg.Repository, outWriter io.Writer, errWriter io.Writer) int {
+func writeCommitsSince(parentCommit string, repo *hg.Repository, outWriter io.Writer, errWriter io.Writer) int {
 	commits, err := repo.GetDescendantsOf(parentCommit)
 	if err != nil {
 		// commit id not found -- return latest commit as fallback
