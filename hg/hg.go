@@ -8,17 +8,18 @@ import (
 )
 
 type Repository struct {
-	Path string
-	Branch string
+	Path         string
+	Branch       string
 	IncludePaths []string
 	ExcludePaths []string
-	TagFilter string
+	TagFilter    string
 }
 
 func (self *Repository) GetLatestCommitId() (string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	revSet := fmt.Sprintf("last((%s) - (%s) - desc('[ci skip]'))", include, exclude)
+	tagFilter := self.maybeTagFilter()
+	revSet := fmt.Sprintf("last((((%s) - (%s)) & %s) - desc('[ci skip]'))", include, exclude, tagFilter)
 
 	_, stdout, stderr, err := runHg([]string{
 		"log",
@@ -36,7 +37,9 @@ func (self *Repository) GetLatestCommitId() (string, error) {
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	revSet := fmt.Sprintf("(descendants(%s) - %s) & ((%s) - (%s)) - desc('[ci skip]')", commitId, commitId, include, exclude)
+	tagFilter := self.maybeTagFilter()
+	revSet := fmt.Sprintf("(descendants(%s) - %s) & %s & ((%s) - (%s)) - desc('[ci skip]')",
+		commitId, commitId, tagFilter, include, exclude)
 
 	_, stdout, stderr, err := runHg([]string{
 		"log",
@@ -56,6 +59,14 @@ func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 
 	commits := strings.Split(trimmed, "\n")
 	return commits, nil
+}
+
+func (self *Repository) maybeTagFilter() string {
+	if len(self.TagFilter) > 0 {
+		return "tag('re:" + escapePath(self.TagFilter) + "')"
+	} else {
+		return "all()"
+	}
 }
 
 func runHg(args []string) (cmd *exec.Cmd, stdout string, stderr string, err error) {
@@ -89,14 +100,14 @@ func (self *Repository) makeExcludeQueryFragment() string {
 
 func unionOfPaths(paths []string) string {
 	escapedPaths := make([]string, len(paths))
-	for i, path := range(paths) {
+	for i, path := range (paths) {
 		escapedPaths[i] = "file('re:" + escapePath(path) + "')"
 	}
 	return strings.Join(escapedPaths, "|")
 }
 
 func escapePath(path string) string {
-	backslashesEscaped := strings.Replace(path, "\\", "\\\\", -1)
+	backslashesEscaped := strings.Replace(path, "\\", "\\\\\\\\", -1)
 	quotesEscaped := strings.Replace(backslashesEscaped, "'", "\\'", -1)
 	return quotesEscaped
 }

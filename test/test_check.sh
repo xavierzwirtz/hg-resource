@@ -187,7 +187,7 @@ test_it_can_check_with_tag_filter() {
   local ref5=$(make_commit $repo)
 
   local expected=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
-  assertEquals "$expected" "$(check_uri_with_tag_filter $repo "-staging$")"
+  assertEquals "$expected" "$(check_uri_with_tag_filter $repo '-staging$' | jq '.')"
 }
 
 test_it_can_check_with_tag_filter_from_a_ref() {
@@ -200,7 +200,7 @@ test_it_can_check_with_tag_filter_from_a_ref() {
   local ref6=$(make_annotated_tag $repo "1.1-staging" "much tag")
 
   local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
-  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging$")"
+  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 '-staging$' | jq '.')"
 }
 
 test_it_can_check_from_head_only_fetching_single_branch() {
@@ -209,7 +209,7 @@ test_it_can_check_from_head_only_fetching_single_branch() {
   local cachedir="$TMPDIR/hg-resource-repo-cache"
   
   local expected=$(echo "[{\"ref\": $(echo $ref | jq -R .)}]" | jq ".")
-  assertEquals "$expected" "$(check_uri $repo)"
+  assertEquals "$expected" "$(check_uri $repo | jq '.')"
   
   ! check_branch_exists "$cachedir" bogus || fail "branch was fetched, expected it to not exist locally"
 }
@@ -221,15 +221,15 @@ test_user_cannot_inject_query_through_include_param() {
   local ref3=$(make_commit_to_file $repo "file-c'")
 
   local expected1=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths $repo "'file-b'")"
+  assertEquals "$expected1" "$(check_uri_paths $repo "'file-b'" | jq '.')"
 
   local expected2=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 "file-c'" | jq '.')"
 
   local ref4=$(make_commit_to_file $repo "'file-b'")
 
   local expected3=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths $repo "file-c'")"
+  assertEquals "$expected3" "$(check_uri_paths $repo "file-c'" | jq '.')"
 
   local ref5=$(make_commit_to_file $repo "file-c'")
 
@@ -237,7 +237,7 @@ test_user_cannot_inject_query_through_include_param() {
       {\"ref\": $(echo $ref3 | jq -R .)},
       {\"ref\": $(echo $ref5 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 "file-c'" | jq '.')"
 }
 
 test_user_cannot_inject_query_through_exclude_param() {
@@ -251,20 +251,20 @@ test_user_cannot_inject_query_through_exclude_param() {
   local ref3=$(make_commit_to_file $repo "'some-file'")
 
   local expected1=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb)"
+  assertEquals "$expected1" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb | jq '.')"
 
   local expected2=$(echo "[]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb)"
+  assertEquals "$expected2" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb | jq '.')"
 
   local ref4=$(make_commit_to_file $repo $fileb)
 
   local expected3=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb)"
+  assertEquals "$expected3" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb | jq '.')"
 
   local ref5=$(make_commit_to_file $repo $filea)
 
   local expected4=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb)"
+  assertEquals "$expected4" "$(check_uri_paths_ignoring $repo $file_wilcard $fileb | jq '.')"
 
   local ref6=$(make_commit_to_file $repo $filec)
 
@@ -274,12 +274,12 @@ test_user_cannot_inject_query_through_exclude_param() {
       {\"ref\": $(echo $ref5 | jq -R .)},
       {\"ref\": $(echo $ref6 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected5" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb)"
+  assertEquals "$expected5" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb | jq '.')"
 
   local expected6=$(echo "[
      {\"ref\": $(echo $ref5 | jq -R .)}
    ]" | jq ".")
-  assertEquals "$expected6" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb $filec)"
+  assertEquals "$expected6" "$(check_uri_from_paths_ignoring $repo $ref1 $file_wilcard $fileb $filec | jq '.')"
 }
 
  test_user_cannot_inject_query_with_tag_filter() {
@@ -292,33 +292,39 @@ test_user_cannot_inject_query_through_exclude_param() {
   local ref6=$(make_annotated_tag $repo "1.1-staging'" "much tag")
 
   local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
-  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging'$")"
+  local filenameWithApostrophe="-staging'$"
+  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 $filenameWithApostrophe | jq '.')"
 }
 
 test_backslash_is_escaped_in_include_param() {
+  local filenameA="'file-a\\'"
+  local filenameB="'file-b\\'"
+  local filenameC="file-c'"
   local repo=$(init_repo)
-  local ref1=$(make_commit_to_file $repo "'file-a\\'")
-  local ref2=$(make_commit_to_file $repo "'file-b\\'")
-  local ref3=$(make_commit_to_file $repo "file-c'")
+  local ref1=$(make_commit_to_file $repo $filenameA)
+  local ref2=$(make_commit_to_file $repo $filenameB)
+  local ref3=$(make_commit_to_file $repo $filenameC)
+
+  hg log --cwd $repo --stat
 
   local expected1=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]" | jq ".")
-  assertEquals "$expected1" "$(check_uri_paths $repo "'file-b\\'")"
+  assertEquals "$expected1" "$(check_uri_paths $repo $filenameB | jq '.')"
 
   local expected2=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+  assertEquals "$expected2" "$(check_uri_from_paths $repo $ref1 $filenameC | jq '.')"
 
-  local ref4=$(make_commit_to_file $repo "'file-b\\'")
+  local ref4=$(make_commit_to_file $repo $filenameB)
 
   local expected3=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]" | jq ".")
-  assertEquals "$expected3" "$(check_uri_paths $repo "file-c'")"
+  assertEquals "$expected3" "$(check_uri_paths $repo $filenameC | jq '.')"
 
-  local ref5=$(make_commit_to_file $repo "file-c'")
+  local ref5=$(make_commit_to_file $repo $filenameC)
 
   local expected4=$(echo "[
       {\"ref\": $(echo $ref3 | jq -R .)},
       {\"ref\": $(echo $ref5 | jq -R .)}
     ]" | jq ".")
-  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 "file-c'")"
+  assertEquals "$expected4" "$(check_uri_from_paths $repo $ref1 $filenameC | jq '.')"
 }
 
  test_backslash_is_escaped_in_tag_filter_param() {
@@ -331,7 +337,8 @@ test_backslash_is_escaped_in_include_param() {
   local ref6=$(make_annotated_tag $repo "1.1-staging\\'" "much tag")
 
   local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
-  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging\\'$")"
+  local filenameWithBackslashApostrophe="-staging\\'$"
+  assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 $filenameWithBackslashApostrophe | jq '.')"
 }
 
 test_it_checks_ssl_certificates() {
