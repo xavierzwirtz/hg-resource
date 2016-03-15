@@ -26,6 +26,8 @@ var commands = []*Command{
 }
 
 func main() {
+	defer cleanup(os.Stderr)
+
 	status := run(os.Args, os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(status)
 }
@@ -73,4 +75,11 @@ func makeUsage() string {
 
 func usage(errWriter io.Writer) {
 	errWriter.Write([]byte(makeUsage()))
+}
+
+func cleanup(errWriter io.Writer) {
+	err := killSshAgent()
+	if err != nil {
+		fmt.Fprintf(errWriter, "Error in cleanup: %s\n", err)
+	}
 }

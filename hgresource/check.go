@@ -36,6 +36,14 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 		TagFilter: params.Source.TagFilter,
 	}
 
+	if len(params.Source.PrivateKey) != 0 {
+		err = loadSshPrivateKey(params.Source.PrivateKey)
+		if err != nil {
+			fmt.Fprintln(errWriter, err)
+			return 1
+		}
+	}
+
 	switch true {
 	case params.Source.Uri == "":
 		fmt.Fprintln(errWriter, "Repository URI must be provided")
