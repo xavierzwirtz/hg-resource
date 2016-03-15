@@ -1,5 +1,12 @@
 package main
 
+import (
+	"fmt"
+	"encoding/json"
+	"io"
+	"bytes"
+)
+
 type Source struct {
 	Uri string `json:"uri"`
 	PrivateKey string `json:"private_key"`
@@ -12,4 +19,48 @@ type Source struct {
 
 type Version struct {
 	Ref string `json:"ref"`
+}
+
+type InParams struct {
+	Source  Source `json:"source"`
+	Version Version `json:"version"`
+}
+
+type VersionList []Version
+
+func parseInput(inReader io.Reader) (*InParams, error) {
+	bytes, err := readAllBytes(inReader)
+	if err != nil {
+		return nil, err
+	}
+
+	params := InParams{}
+	json.Unmarshal(bytes, &params)
+	return &params, nil
+}
+
+func readAllBytes(reader io.Reader) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(reader)
+
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func WriteJson(outWriter io.Writer, object interface{}) (n int, err error) {
+	output, err := json.Marshal(object)
+	if err != nil {
+		return n, fmt.Errorf("Error serializing JSON response: %s", err)
+	}
+
+	n, err = outWriter.Write(output)
+	if err != nil {
+		return n, fmt.Errorf("Error writing JSON to io.Writer: %s", err)
+	}
+
+	outWriter.Write([]byte("\n"))
+	n++
+	return
 }

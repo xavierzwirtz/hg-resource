@@ -3,8 +3,6 @@ package main
 import (
 	"io"
 	"github.com/andreasf/hg-resource/hg"
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"path"
 )
@@ -18,13 +16,6 @@ var cmdCheck = &Command{
 	Name: cmdCheckName,
 	Run: runCheck,
 }
-
-type InParams struct {
-	Source  Source `json:"source"`
-	Version Version `json:"version"`
-}
-
-type VersionList []Version
 
 func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
 	params, err := parseInput(inReader)
@@ -117,41 +108,4 @@ func writeCommitsSince(parentCommit string, repo *hg.Repository, outWriter io.Wr
 	}
 
 	return 0
-}
-
-func parseInput(inReader io.Reader) (*InParams, error) {
-	bytes, err := readAllBytes(inReader)
-	if err != nil {
-		return nil, err
-	}
-
-	params := InParams{}
-	json.Unmarshal(bytes, &params)
-	return &params, nil
-}
-
-func readAllBytes(reader io.Reader) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(reader)
-
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func WriteJson(outWriter io.Writer, object interface{}) (n int, err error) {
-	output, err := json.Marshal(object)
-	if err != nil {
-		return n, fmt.Errorf("Error serializing JSON response: %s", err)
-	}
-
-	n, err = outWriter.Write(output)
-	if err != nil {
-		return n, fmt.Errorf("Error writing JSON to io.Writer: %s", err)
-	}
-
-	outWriter.Write([]byte("\n"))
-	n++
-	return
 }
