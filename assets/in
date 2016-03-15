@@ -23,11 +23,11 @@ payload=$(mktemp $TMPDIR/git-resource-request.XXXXXX)
 cat > $payload <&0
 
 load_pubkey $payload
-configure_ssl_verification $payload
 
 uri=$(jq -r '.source.uri // ""' < $payload)
 branch=$(jq -r '.source.branch // ""' < $payload)
 ref=$(jq -r '.version.ref // "tip"' < $payload)
+insecure_flag=$(get_insecure_flag $payload)
 
 if [ -z "$uri" ]; then
   echo "invalid payload (missing uri):" >&2
@@ -39,7 +39,7 @@ if [ -z "$branch" ]; then
 	branch="default"
 fi
 
-hg clone -q --branch "$branch" $uri $destination
+hg clone $insecure_flag -q --branch "$branch" $uri $destination
 
 cd $destination
 

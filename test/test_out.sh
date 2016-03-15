@@ -307,4 +307,62 @@ test_it_aborts_on_unknown_push_errors() {
   fi
 }
 
+test_it_checks_ssl_certificates() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local tagged_commit=$(make_commit $repo2)
+  # create a tag to push
+  local ref=$(make_tag $repo2 some-tag)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  hg serve --cwd $repo1 --config 'web.allow_push=*' --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  ! put_uri https://localhost:8000/ $src repo || fail "expected self-signed certificate to not be trusted"
+
+  kill $serve_pid
+  sleep 0.1
+}
+
+test_it_can_put_with_ssl_cert_checks_disabled() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local tagged_commit=$(make_commit $repo2)
+  # create a tag to push
+  local ref=$(make_tag $repo2 some-tag)
+
+  # cannot push to repo while it's checked out to a branch
+  hg checkout --cwd $repo1 default
+
+  hg serve --cwd $repo1 --config 'web.allow_push=*' --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  put_uri_insecure https://localhost:8000/ $src repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # update working directory in repo1
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+  test "$(get_working_dir_ref $repo1)" = $ref
+  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev some-tag --template '{node}')
+  assertEquals "$tagged_commit" "$actual_commit_id_of_tag"
+
+  kill $serve_pid
+  sleep 0.1
+}
+
 source $(dirname $0)/shunit2

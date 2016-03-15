@@ -25,7 +25,7 @@ tag() {
 }
 
 push_src_and_tags() {
-  hg push --config "paths.push-target=$uri" --branch $branch push-target
+  hg push $insecure_flag --config "paths.push-target=$uri" --branch $branch push-target
 }
 
 set_commit_id_to_return() {
@@ -40,6 +40,7 @@ set_global_params_from_json() {
   tag=$(jq -r '.params.tag // ""' < $payload)
   tag_prefix=$(jq -r '.params.tag_prefix // ""' < $payload)
   rebase=$(jq -r '.params.rebase // false' < $payload)
+  insecure_flag=$(get_insecure_flag $payload)
 }
 
 validate_params() {
@@ -76,7 +77,6 @@ main() {
   cat > $payload <&0
 
   load_pubkey $payload
-  configure_ssl_verification $payload
 
   set_global_params_from_json
   validate_params
@@ -111,7 +111,7 @@ main() {
     while true; do
       echo "rebasing..."
 
-      hg pull --config extensions.rebase= --config "paths.push-target=$uri" --rebase --branch $branch push-target
+      hg pull $insecure_flag --config extensions.rebase= --config "paths.push-target=$uri" --rebase --branch $branch push-target
       set_commit_id_to_return "$repo_at_ref"
 
       # instead of using a file, it would also be possible to write the exit code of

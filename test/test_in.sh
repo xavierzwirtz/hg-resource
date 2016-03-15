@@ -123,4 +123,40 @@ test_it_updates_subrepositories() {
   fi
 }
 
+test_it_checks_ssl_certificates() {
+  local repo=$(init_repo)
+  local ref=$(make_commit $repo)
+  local dest=$TMPDIR/destination
+
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  ! get_uri https://127.0.0.1:8000/ $dest || fail "expected self-signed certificate to not be trusted"
+
+  kill $serve_pid
+  sleep 0.1
+}
+
+test_it_can_get_with_ssl_cert_checks_disabled() {
+  local repo=$(init_repo)
+  local ref=$(make_commit $repo)
+  local dest=$TMPDIR/destination
+
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  local expected=$(echo "{\"ref\": $(echo $ref | jq -R .)}" | jq ".")
+  assertEquals "$expected" "$(get_uri_insecure https://127.0.0.1:8000/ $dest | jq '.version')"
+
+  if [ ! -e "$dest/some-file" ]; then
+    fail "expected some-file to exist in the working directory"
+  fi
+  assertEquals "$ref" "$(get_working_dir_ref $dest)"
+
+  kill $serve_pid
+  sleep 0.1
+}
+
 source $(dirname $0)/shunit2

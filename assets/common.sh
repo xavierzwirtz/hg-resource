@@ -22,10 +22,10 @@ EOF
   fi
 }
 
-configure_ssl_verification() {
-  skip_ssl_verification=$(jq -r '.source.skip_ssl_verification // false' < $1)
+get_insecure_flag() {
+  local skip_ssl_verification=$(cat $1 | jq -r '.source.skip_ssl_verification // false')
   if [ "$skip_ssl_verification" = "true" ]; then
-    export GIT_SSL_NO_VERIFY=true
+    echo "--insecure"
   fi
 }
 

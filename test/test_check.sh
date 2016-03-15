@@ -359,4 +359,32 @@ test_backslash_is_escaped_in_include_param() {
   assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 "-staging\\'$")"
 }
 
+test_it_checks_ssl_certificates() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  ! check_uri https://127.0.0.1:8000/ || fail "expected self-signed certificate to not be trusted"
+  kill $serve_pid
+  sleep 0.1
+}
+
+test_it_can_disable_ssl_certificate_verification() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  serve_pid=$!
+  $(sleep 5; kill $serve_pid) &
+
+  local expected=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected" "$(check_uri_insecure https://127.0.0.1:8000/)"
+
+  kill $serve_pid
+  sleep 0.1
+}
+
 source $(dirname $0)/shunit2

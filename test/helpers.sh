@@ -192,6 +192,14 @@ check_uri() {
   }" | ${resource_dir}/check | tee /dev/stderr
 }
 
+check_uri_insecure() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .),
+      skip_ssl_verification: true
+    }
+  }" | ${resource_dir}/check | tee /dev/stderr
+}
 
 check_uri_with_key() {
   jq -n "{
@@ -342,6 +350,15 @@ get_uri() {
   }" | ${resource_dir}/in "$2" | tee /dev/stderr
 }
 
+get_uri_insecure() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .),
+      skip_ssl_verification: true
+    }
+  }" | ${resource_dir}/in "$2" | tee /dev/stderr
+}
+
 get_uri_at_depth() {
   jq -n "{
     source: {
@@ -402,6 +419,19 @@ put_uri() {
     source: {
       uri: $(echo $1 | jq -R .),
       branch: \"default\"
+    },
+    params: {
+      repository: $(echo $3 | jq -R .)
+    }
+  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+}
+
+put_uri_insecure() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .),
+      branch: \"default\",
+      skip_ssl_verification: true
     },
     params: {
       repository: $(echo $3 | jq -R .)

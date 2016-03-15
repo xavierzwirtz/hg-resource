@@ -48,7 +48,6 @@ main() {
   cat > $payload <&0
 
   load_pubkey $payload
-  configure_ssl_verification $payload
 
   uri=$(jq -r '.source.uri // ""' < $payload)
   branch=$(jq -r '.source.branch // ""' < $payload)
@@ -56,6 +55,7 @@ main() {
   exclude_fragment=$(get_exclude_query_fragment)
   tag_filter=$(cat $payload | jq -r "(.source.tag_filter // \"\")" | escape_backslash_and_apostrophe)
   ref=$(jq -r '.version.ref // ""' < $payload)
+  insecure_flag=$(get_insecure_flag $payload)
 
   destination=$TMPDIR/hg-resource-repo-cache
 
@@ -63,14 +63,14 @@ main() {
 
   if [ -d $destination ]; then
     cd $destination
-    hg pull -q
+    hg pull $insecure_flag -q
     hg checkout -q --clean --rev tip
   else
     if [ -z "$branch" ]; then
       branch="default"
     fi
 
-    hg clone -q --branch "$branch" $uri $destination
+    hg clone $insecure_flag -q --branch "$branch" $uri $destination
     cd $destination
   fi
 
