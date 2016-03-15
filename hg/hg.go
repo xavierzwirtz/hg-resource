@@ -16,6 +16,12 @@ type Repository struct {
 	TagFilter    string
 }
 
+type HgMetadata struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Type  string `json:"type,omitempty"`
+}
+
 func (self *Repository) CloneOrPull(sourceUri string, insecure bool) error {
 	if len(self.Path) == 0 {
 		return fmt.Errorf("CloneOrPull: repository path must be set")
@@ -74,6 +80,35 @@ func (self *Repository) pull(insecure bool) error {
 	return nil
 }
 
+func (self *Repository) Checkout(commitId string) error {
+	_, _, stderr, err := runHg("checkout", []string{
+		"-q",
+		"--cwd", self.Path,
+		"--clean",
+		"--rev", commitId,
+	}, false)
+
+	if err != nil {
+		return fmt.Errorf("Error checking out %s: %s\nStderr: %s", commitId, err, stderr)
+	}
+
+	return nil
+}
+
+func (self *Repository) Purge() error {
+	_, _, stderr, err := runHg("purge", []string{
+		"--config", "extensions.purge=",
+		"--cwd", self.Path,
+		"--all",
+	}, false)
+
+	if err != nil {
+		return fmt.Errorf("Error purging repository: %s\nStderr: %s", err, stderr)
+	}
+
+	return nil
+}
+
 func (self *Repository) GetLatestCommitId() (string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
@@ -124,6 +159,71 @@ func (self *Repository) maybeTagFilter() string {
 	} else {
 		return "all()"
 	}
+}
+
+func (self *Repository) Metadata(commitId string) (fullCommitId string, metadata []HgMetadata, err error) {
+	// TODO use single call to hg, e.g. via json template + date conversion in go
+	_, fullCommitId, stderr, err := runHg("log", []string{
+		"--cwd", self.Path,
+		"--rev", commitId,
+		"--template", "{node}",
+	}, false)
+	if err != nil {
+		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		return
+	}
+
+	_, author, stderr, err := runHg("log", []string{
+		"--cwd", self.Path,
+		"--rev", commitId,
+		"--template", "{author}",
+	}, false)
+	if err != nil {
+		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		return
+	}
+
+	_, date, stderr, err := runHg("log", []string{
+		"--cwd", self.Path,
+		"--rev", commitId,
+		"--template", "{date|isodatesec}",
+	}, false)
+	if err != nil {
+		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		return
+	}
+
+	_, message, stderr, err := runHg("log", []string{
+		"--cwd", self.Path,
+		"--rev", commitId,
+		"--template", "{desc}",
+	}, false)
+	if err != nil {
+		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		return
+	}
+
+	metadata = append(metadata,
+		HgMetadata{
+			Name: "commit",
+			Value: fullCommitId,
+		},
+		HgMetadata{
+			Name: "author",
+			Value: author,
+		},
+		HgMetadata{
+			Name: "author_date",
+			Value: date,
+			Type: "time",
+		},
+		HgMetadata{
+			Name: "message",
+			Value: message,
+			Type: "message",
+		},
+	)
+	return
 }
 
 func runHg(command string, args []string, insecure bool) (cmd *exec.Cmd, stdout string, stderr string, err error) {
