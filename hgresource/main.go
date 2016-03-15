@@ -12,7 +12,10 @@ import (
 	"strings"
 )
 
-const usageTemplate = "Usage: hgresource <%s> [arguments]"
+const (
+	defaultBranch = "default"
+	usageTemplate = "Usage: hgresource <%s> [arguments]"
+)
 
 type Command struct {
 	Name string

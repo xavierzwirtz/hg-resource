@@ -7,10 +7,6 @@ import (
 	"path"
 )
 
-const (
-	defaultBranch = "default"
-)
-
 var cmdCheckName string = "check"
 var cmdCheck = &Command{
 	Name: cmdCheckName,
