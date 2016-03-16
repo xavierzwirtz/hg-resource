@@ -18,7 +18,7 @@ type Repository struct {
 	SkipSslVerification bool
 }
 
-type HgMetadata struct {
+type CommitProperty struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 	Type  string `json:"type,omitempty"`
@@ -36,8 +36,6 @@ type HgChangeset struct {
 	Tags      []string `json:"tags"`
 	Parents   []string `json:"parents"`
 }
-
-type HgChangesetList []HgChangeset
 
 func (self *Repository) CloneOrPull(sourceUri string, insecure bool) ([]byte, error) {
 	if len(self.Path) == 0 {
@@ -273,7 +271,7 @@ func (self *Repository) maybeTagFilter() string {
 	}
 }
 
-func (self *Repository) Metadata(commitId string) (metadata []HgMetadata, err error) {
+func (self *Repository) Metadata(commitId string) (metadata []CommitProperty, err error) {
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
@@ -307,32 +305,32 @@ func timeToIso8601(timestamp time.Time) string {
 	return timestamp.Format("2006-01-02 15:04:05 -0700")
 }
 
-func (commit *HgChangeset) toCommitProperties() (metadata []HgMetadata, err error) {
+func (commit *HgChangeset) toCommitProperties() (metadata []CommitProperty, err error) {
 	timestamp, err := parseHgTime(commit.Date)
 	if err != nil {
 		return
 	}
 
 	metadata = append(metadata,
-		HgMetadata{
+		CommitProperty{
 			Name: "commit",
 			Value: commit.Node,
 		},
-		HgMetadata{
+		CommitProperty{
 			Name: "author",
 			Value: commit.User,
 		},
-		HgMetadata{
+		CommitProperty{
 			Name: "author_date",
 			Value: timeToIso8601(timestamp),
 			Type: "time",
 		},
-		HgMetadata{
+		CommitProperty{
 			Name: "message",
 			Value: commit.Desc,
 			Type: "message",
 		},
-		HgMetadata{
+		CommitProperty{
 			Name: "tags",
 			Value: strings.Join(commit.Tags, ", "),
 		},
@@ -341,8 +339,8 @@ func (commit *HgChangeset) toCommitProperties() (metadata []HgMetadata, err erro
 	return
 }
 
-func parseMetadata(hgJsonOutput []byte) (metadata []HgMetadata, err error) {
-	commits := HgChangesetList{}
+func parseMetadata(hgJsonOutput []byte) (metadata []CommitProperty, err error) {
+	commits := []HgChangeset{}
 	err = json.Unmarshal(hgJsonOutput, &commits)
 	if err != nil {
 		return

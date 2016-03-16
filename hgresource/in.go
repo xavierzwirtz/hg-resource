@@ -13,7 +13,7 @@ var cmdIn = &Command{
 }
 
 type InOutput struct {
-	Metadata []hg.HgMetadata `json:"metadata"`
+	Metadata []hg.CommitProperty `json:"metadata"`
 	Version Version `json:"version"`
 }
 

@@ -148,7 +148,7 @@ func getJsonOutputForCurrentCommit(repo *hg.Repository) (output InOutput, err er
 		return
 	}
 
-	var metadata []hg.HgMetadata
+	var metadata []hg.CommitProperty
 	metadata, err = repo.Metadata(commitId)
 	if err != nil {
 		err = fmt.Errorf("Error getting metadata from rebased commit in temp repo: %s", err)

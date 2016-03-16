@@ -55,7 +55,7 @@ var _ = Describe("Hg", func() {
 				"parents": ["4484191cd2e41c174ecc2604af06aeb2a21c247f"]
 			}
 		]`
-		var metadata []HgMetadata
+		var metadata []CommitProperty
 		var err error
 
 		BeforeEach(func() {
