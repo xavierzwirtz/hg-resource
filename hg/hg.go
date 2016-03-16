@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"os"
+	"encoding/json"
+	"time"
 )
 
 type Repository struct {
@@ -21,6 +23,21 @@ type HgMetadata struct {
 	Value string `json:"value"`
 	Type  string `json:"type,omitempty"`
 }
+
+type HgChangeset struct {
+	Rev        int `json:"rev"`
+	Node       string `json:"node"`
+	Branch     string `json:"branch"`
+	Phase      string `json:"phase"`
+	User       string `json:"user"`
+	Date       []int64 `json:"date"`
+	Desc       string `json:"desc"`
+	Booksmarks []string `json:"bookmarks"`
+	Tags       []string `json:"tags"`
+	Parents    []string `json:"parents"`
+}
+
+type HgChangesetList []HgChangeset
 
 func (self *Repository) CloneOrPull(sourceUri string, insecure bool) ([]byte, error) {
 	if len(self.Path) == 0 {
@@ -256,73 +273,87 @@ func (self *Repository) maybeTagFilter() string {
 	}
 }
 
-func (self *Repository) Metadata(commitId string) (fullCommitId string, metadata []HgMetadata, err error) {
-	// TODO use single call to hg, e.g. via json template + date conversion in go
-	// TODO date format in json is: [epochSeconds, secondOffsetFromUTC]
+func (self *Repository) Metadata(commitId string) (metadata []HgMetadata, err error) {
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
-		"--template", "{node}",
+		"--template", "json",
 	})
-	fullCommitId = string(outBytes)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, fullCommitId)
-		return
+		err = fmt.Errorf("Error getting metadata for commit %s: %s\n%s", commitId, err, string(outBytes))
 	}
 
-	_, outBytes, err = self.run("log", []string{
-		"--cwd", self.Path,
-		"--rev", commitId,
-		"--template", "{author}",
-	})
-	author := string(outBytes)
-	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, author)
-		return
-	}
+	metadata, err = parseMetadata(outBytes)
+	return
+}
 
-	_, outBytes, err = self.run("log", []string{
-		"--cwd", self.Path,
-		"--rev", commitId,
-		"--template", "{date|isodatesec}",
-	})
-	date := string(outBytes)
-	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, date)
-		return
+func parseHgTime(hgTime []int64) (parsedTime time.Time, err error) {
+	if len(hgTime) != 2 {
+		err = fmt.Errorf("parseHgTime: expected slice hgTime to have 2 elements")
 	}
+	utcEpoch := hgTime[0]
+	offset := hgTime[1]
 
-	_, outBytes, err = self.run("log", []string{
-		"--cwd", self.Path,
-		"--rev", commitId,
-		"--template", "{desc}",
-	})
-	message := string(outBytes)
+	utcTime := time.Unix(utcEpoch, 0)
+
+	// for some reason, mercurial uses the inverse sign on the offset
+	zone := time.FixedZone("internet time", -1 * int(offset))
+
+	parsedTime = utcTime.In(zone)
+	return
+}
+
+func timeToIso8601(timestamp time.Time) string {
+	return timestamp.Format("2006-01-02 15:04:05 -0700")
+}
+
+func (commit *HgChangeset) toCommitProperties() (metadata []HgMetadata, err error) {
+	timestamp, err := parseHgTime(commit.Date)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, message)
 		return
 	}
 
 	metadata = append(metadata,
 		HgMetadata{
 			Name: "commit",
-			Value: fullCommitId,
+			Value: commit.Node,
 		},
 		HgMetadata{
 			Name: "author",
-			Value: author,
+			Value: commit.User,
 		},
 		HgMetadata{
 			Name: "author_date",
-			Value: date,
+			Value: timeToIso8601(timestamp),
 			Type: "time",
 		},
 		HgMetadata{
 			Name: "message",
-			Value: message,
+			Value: commit.Desc,
 			Type: "message",
 		},
+		HgMetadata{
+			Name: "tags",
+			Value: strings.Join(commit.Tags, ", "),
+		},
 	)
+
+	return
+}
+
+func parseMetadata(hgJsonOutput []byte) (metadata []HgMetadata, err error) {
+	commits := HgChangesetList{}
+	err = json.Unmarshal(hgJsonOutput, &commits)
+	if err != nil {
+		return
+	}
+
+	if len(commits) != 1 {
+		err = fmt.Errorf("parseMetadata: expected 1 commit, found %d", len(commits))
+		return
+	}
+
+	metadata, err = commits[0].toCommitProperties()
 	return
 }
 

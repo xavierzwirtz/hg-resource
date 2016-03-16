@@ -94,7 +94,8 @@ test_it_returns_metadata() {
       {\"name\": \"commit\", \"value\": $(echo $ref | jq -R .)},
       {\"name\": \"author\", \"value\": \"expected username <expected@example.com>\"},
       {\"name\": \"author_date\", \"value\": \"2016-12-31 12:34:56 +0000\", \"type\": \"time\"},
-      {\"name\": \"message\", \"value\": \"test message\", \"type\": \"message\"}
+      {\"name\": \"message\", \"value\": \"test message\", \"type\": \"message\"},
+      {\"name\": \"tags\", \"value\": \"tip\"}
     ]" | jq ".")
  
   assertEquals "$expected" "$(get_uri $repo $dest | jq '.metadata')"  
