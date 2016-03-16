@@ -25,16 +25,16 @@ type HgMetadata struct {
 }
 
 type HgChangeset struct {
-	Rev        int `json:"rev"`
-	Node       string `json:"node"`
-	Branch     string `json:"branch"`
-	Phase      string `json:"phase"`
-	User       string `json:"user"`
-	Date       []int64 `json:"date"`
-	Desc       string `json:"desc"`
-	Booksmarks []string `json:"bookmarks"`
-	Tags       []string `json:"tags"`
-	Parents    []string `json:"parents"`
+	Rev       int `json:"rev"`
+	Node      string `json:"node"`
+	Branch    string `json:"branch"`
+	Phase     string `json:"phase"`
+	User      string `json:"user"`
+	Date      []int64 `json:"date"`
+	Desc      string `json:"desc"`
+	Bookmarks []string `json:"bookmarks"`
+	Tags      []string `json:"tags"`
+	Parents   []string `json:"parents"`
 }
 
 type HgChangesetList []HgChangeset
