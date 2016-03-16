@@ -4,7 +4,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
-	"fmt"
 )
 
 var _ = Describe("Hg", func() {
@@ -87,7 +86,6 @@ var _ = Describe("Hg", func() {
 
 			Expect(err).To(BeNil())
 
-			fmt.Println(parsedTime)
 			year, month, day := parsedTime.Date()
 			Expect(year).To(Equal(2016))
 			Expect(month).To(Equal(time.Month(3)))
