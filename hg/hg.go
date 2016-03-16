@@ -57,7 +57,7 @@ func (self *Repository) CloneOrPull(sourceUri string, insecure bool) ([]byte, er
 func (self *Repository) clone(sourceUri string, insecure bool) (output []byte, err error) {
 	err = os.RemoveAll(self.Path)
 	if err != nil {
-		err = fmt.Errorf("CloneOrUpdate: %s", err)
+		err = fmt.Errorf("clone: %s", err)
 		return
 	}
 
@@ -114,6 +114,9 @@ func (self *Repository) PullWithRebase(sourceUri string, branch string) (output 
 	return
 }
 
+// Clones sourceUri into the repository and truncates all history after the given commit,
+// making it the new tip. After truncating, we can add a tag commit at tip, and then push
+// the whole known branch (... -> given commit -> tag commit == tip) to another repository.
 func (self *Repository) CloneAtCommit(sourceUri string, commitId string) (output []byte, err error) {
 	_, output, err = self.run("clone", []string{
 		"-q",
@@ -128,6 +131,7 @@ func (self *Repository) CloneAtCommit(sourceUri string, commitId string) (output
 	return
 }
 
+// Makes the repository rebaseable. See `hg help phases`.
 func (self *Repository) SetDraftPhase() (output []byte, err error) {
 	_, output, err = self.run("phase", []string{
 		"--cwd", self.Path,
@@ -155,6 +159,7 @@ func (self *Repository) Push(destUri string, branch string) (output []byte, err 
 	return
 }
 
+// Tags a commit. Expects to be run only at tip!
 func (self *Repository) Tag(tagValue string) (output []byte, err error) {
 	_, output, err = self.run("tag", []string{
 		"--cwd", self.Path,
