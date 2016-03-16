@@ -42,14 +42,6 @@ func runIn(args []string, params *JsonInput, outWriter io.Writer, errWriter io.W
 		commitId = params.Version.Ref
 	}
 
-	if len(params.Source.PrivateKey) != 0 {
-		err := loadSshPrivateKey(params.Source.PrivateKey)
-		if err != nil {
-			fmt.Fprintln(errWriter, err)
-			return 1
-		}
-	}
-
 	output, err := repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
 	errWriter.Write(output)
 	if err != nil {

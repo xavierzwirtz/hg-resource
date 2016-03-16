@@ -38,8 +38,6 @@ func main() {
 }
 
 func run(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	defer cleanup(os.Stderr)
-
 	// try to dispatch by application name, then by first parameter
 	handlerArgs := args[1:]
 	appName, handler, err := getHandlerByAppName(args)
@@ -63,6 +61,16 @@ func run(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Wr
 	if err != nil {
 		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
 		return 1
+	}
+
+	// run ssh-agent
+	if len(input.Source.PrivateKey) != 0 {
+		err := loadSshPrivateKey(input.Source.PrivateKey)
+		defer cleanupSshAgent(os.Stderr)
+		if err != nil {
+			fmt.Fprintln(errWriter, err)
+			return 1
+		}
 	}
 
 	return handler.Run(handlerArgs, input, os.Stdout, os.Stderr)
@@ -107,7 +115,7 @@ func usage(errWriter io.Writer) {
 	fmt.Fprintln(errWriter, makeUsage())
 }
 
-func cleanup(errWriter io.Writer) {
+func cleanupSshAgent(errWriter io.Writer) {
 	err := killSshAgent()
 	if err != nil {
 		fmt.Fprintf(errWriter, "Error in cleanup: %s\n", err)

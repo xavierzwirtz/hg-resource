@@ -28,14 +28,6 @@ func runCheck(args []string, params *JsonInput, outWriter io.Writer, errWriter i
 		repo.Branch = defaultBranch
 	}
 
-	if len(params.Source.PrivateKey) != 0 {
-		err := loadSshPrivateKey(params.Source.PrivateKey)
-		if err != nil {
-			fmt.Fprintln(errWriter, err)
-			return 1
-		}
-	}
-
 	if len(params.Source.Uri) == 0 {
 		fmt.Fprintln(errWriter, "Repository URI must be provided")
 		return 1

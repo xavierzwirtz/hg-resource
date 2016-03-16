@@ -38,14 +38,6 @@ func runOut(args []string, input *JsonInput, outWriter io.Writer, errWriter io.W
 		return 1
 	}
 
-	if len(input.Source.PrivateKey) != 0 {
-		err = loadSshPrivateKey(input.Source.PrivateKey)
-		if err != nil {
-			fmt.Fprintln(errWriter, err)
-			return 1
-		}
-	}
-
 	sourceRepo := &hg.Repository{
 		Path: validatedParams.SourcePath,
 		Branch: validatedParams.Branch,
