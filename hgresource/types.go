@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"bytes"
+	"github.com/andreasf/hg-resource/hg"
 )
 
 type Source struct {
@@ -32,6 +33,11 @@ type JsonInput struct {
 	Source  Source `json:"source"`
 	Version Version `json:"version"`
 	Params Params `json:"params"`
+}
+
+type JsonOutput struct {
+	Metadata []hg.CommitProperty `json:"metadata"`
+	Version Version `json:"version"`
 }
 
 type VersionList []Version

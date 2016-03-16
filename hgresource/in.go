@@ -12,11 +12,6 @@ var cmdIn = &Command{
 	Run: runIn,
 }
 
-type InOutput struct {
-	Metadata []hg.CommitProperty `json:"metadata"`
-	Version Version `json:"version"`
-}
-
 func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
 	if len(args) < 2 {
 		inUsage(args[0], errWriter)

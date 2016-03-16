@@ -71,7 +71,7 @@ func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io
 	tempRepo, tempRepoCleanup, err := cloneAtCommitIntoTempDir(sourceRepo, commitId, errWriter)
 	defer tempRepoCleanup(errWriter)
 
-	var jsonOutput InOutput
+	var jsonOutput JsonOutput
 	if validatedParams.Rebase {
 		jsonOutput, err = rebaseAndPush(tempRepo, validatedParams, maxRebaseRetries, errWriter)
 		if err != nil {
@@ -98,7 +98,7 @@ func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io
 	return 0
 }
 
-func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, errWriter io.Writer) (jsonOutput InOutput, err error) {
+func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, errWriter io.Writer) (jsonOutput JsonOutput, err error) {
 	for pushAttempt := 0; pushAttempt < maxRetries; pushAttempt++ {
 		var output []byte
 		fmt.Fprintf(errWriter, "rebasing, attempt %d/%d...\n", pushAttempt + 1, maxRetries)
@@ -140,7 +140,7 @@ func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, e
 	return
 }
 
-func getJsonOutputForCurrentCommit(repo *hg.Repository) (output InOutput, err error) {
+func getJsonOutputForCurrentCommit(repo *hg.Repository) (output JsonOutput, err error) {
 	var commitId string
 	commitId, err = repo.GetCurrentCommitId()
 	if err != nil {
@@ -155,7 +155,7 @@ func getJsonOutputForCurrentCommit(repo *hg.Repository) (output InOutput, err er
 		return
 	}
 
-	output = InOutput{
+	output = JsonOutput{
 		Version: Version{
 			Ref: commitId,
 		},
