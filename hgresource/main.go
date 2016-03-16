@@ -17,7 +17,7 @@ const (
 	usageTemplate = "Usage: hgresource <%s> [arguments]"
 )
 
-type HandlerFunc func([]string, io.Reader, io.Writer, io.Writer) int
+type HandlerFunc func([]string, *JsonInput, io.Writer, io.Writer) int
 
 type Command struct {
 	Name    string
@@ -33,7 +33,6 @@ var commands = []*Command{
 }
 
 func main() {
-	// TODO move input parsing into this file
 	status := run(os.Args, os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(status)
 }
@@ -60,7 +59,13 @@ func run(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Wr
 		return 2
 	}
 
-	return handler.Run(handlerArgs, os.Stdin, os.Stdout, os.Stderr)
+	input, err := parseInput(inReader)
+	if err != nil {
+		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
+		return 1
+	}
+
+	return handler.Run(handlerArgs, input, os.Stdout, os.Stderr)
 }
 
 func getHandlerByAppName(args []string) (appName string, handler *Command, err error) {

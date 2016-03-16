@@ -14,13 +14,7 @@ var cmdCheck = &Command{
 	NumArgs: 0,
 }
 
-func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	params, err := parseInput(inReader)
-	if err != nil {
-		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
-		return 1
-	}
-
+func runCheck(args []string, params *JsonInput, outWriter io.Writer, errWriter io.Writer) int {
 	repo := hg.Repository{
 		Path: getCacheDir(),
 		Branch: params.Source.Branch,
@@ -35,7 +29,7 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 	}
 
 	if len(params.Source.PrivateKey) != 0 {
-		err = loadSshPrivateKey(params.Source.PrivateKey)
+		err := loadSshPrivateKey(params.Source.PrivateKey)
 		if err != nil {
 			fmt.Fprintln(errWriter, err)
 			return 1

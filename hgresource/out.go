@@ -29,14 +29,8 @@ type PushParams struct {
 
 const maxRebaseRetries = 10
 
-func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
+func runOut(args []string, input *JsonInput, outWriter io.Writer, errWriter io.Writer) int {
 	source := args[0]
-	input, err := parseInput(inReader)
-
-	if err != nil {
-		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
-		return 1
-	}
 
 	validatedParams, err := validateInput(input, source)
 	if err != nil {

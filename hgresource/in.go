@@ -14,14 +14,8 @@ var cmdIn = &Command{
 	Usage: inUsage,
 }
 
-func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
+func runIn(args []string, params *JsonInput, outWriter io.Writer, errWriter io.Writer) int {
 	destination := args[0]
-	params, err := parseInput(inReader)
-
-	if err != nil {
-		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
-		return 1
-	}
 
 	repo := &hg.Repository{
 		Path: destination,
@@ -49,7 +43,7 @@ func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.
 	}
 
 	if len(params.Source.PrivateKey) != 0 {
-		err = loadSshPrivateKey(params.Source.PrivateKey)
+		err := loadSshPrivateKey(params.Source.PrivateKey)
 		if err != nil {
 			fmt.Fprintln(errWriter, err)
 			return 1
