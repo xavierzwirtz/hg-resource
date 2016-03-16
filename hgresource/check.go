@@ -7,10 +7,11 @@ import (
 	"path"
 )
 
-var cmdCheckName string = "check"
+const cmdCheckName string = "check"
 var cmdCheck = &Command{
 	Name: cmdCheckName,
 	Run: runCheck,
+	NumArgs: 0,
 }
 
 func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {

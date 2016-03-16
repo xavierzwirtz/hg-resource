@@ -6,19 +6,16 @@ import (
 	"github.com/andreasf/hg-resource/hg"
 )
 
-var cmdInName string = "in"
+const cmdInName string = "in"
 var cmdIn = &Command{
 	Name: cmdInName,
 	Run: runIn,
+	NumArgs: 1,
+	Usage: inUsage,
 }
 
 func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	if len(args) < 2 {
-		inUsage(args[0], errWriter)
-		return 2
-	}
-
-	destination := args[1]
+	destination := args[0]
 	params, err := parseInput(inReader)
 
 	if err != nil {

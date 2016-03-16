@@ -11,10 +11,12 @@ import (
 	"strings"
 )
 
-var cmdOutName string = "out"
+const cmdOutName string = "out"
 var cmdOut = &Command{
 	Name: cmdOutName,
 	Run: runOut,
+	NumArgs: 1,
+	Usage: outUsage,
 }
 
 type PushParams struct {
@@ -28,12 +30,7 @@ type PushParams struct {
 const maxRebaseRetries = 10
 
 func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	if len(args) < 2 {
-		outUsage(args[0], errWriter)
-		return 2
-	}
-
-	source := args[1]
+	source := args[0]
 	input, err := parseInput(inReader)
 
 	if err != nil {

@@ -17,9 +17,13 @@ const (
 	usageTemplate = "Usage: hgresource <%s> [arguments]"
 )
 
+type HandlerFunc func([]string, io.Reader, io.Writer, io.Writer) int
+
 type Command struct {
-	Name string
-	Run  func([]string, io.Reader, io.Writer, io.Writer) int
+	Name    string
+	Run     HandlerFunc
+	NumArgs int
+	Usage   func(string, io.Writer)
 }
 
 var commands = []*Command{
@@ -29,38 +33,56 @@ var commands = []*Command{
 }
 
 func main() {
-	defer cleanup(os.Stderr)
-
+	// TODO move input parsing into this file
 	status := run(os.Args, os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(status)
 }
 
 func run(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	// first, try to dispatch by application name
-	appName := path.Base(args[0])
-	handler, err := getHandler(appName, args[1:], outWriter, errWriter)
-	if err == nil {
-		return handler(args, inReader, outWriter, errWriter)
-	}
+	defer cleanup(os.Stderr)
 
-	// then, check the first argument
-	if len(args) > 1 {
-		handler, err = getHandler(args[1], args[2:], outWriter, errWriter)
-		if err == nil {
-			argsCopy := []string{fmt.Sprintf("%s %s", path.Base(args[0]), args[1])}
-			argsCopy = append(argsCopy, args[2:]...)
-			return handler(argsCopy, inReader, outWriter, errWriter)
+	// try to dispatch by application name, then by first parameter
+	handlerArgs := args[1:]
+	appName, handler, err := getHandlerByAppName(args)
+	if err != nil {
+		appName, handler, err = getHandlerByFirstArgument(args)
+		if err != nil {
+			usage(errWriter)
+			return 2
+		} else {
+			handlerArgs = args[2:]
 		}
 	}
 
-	usage(errWriter)
-	return 2
+	// print handler usage if required
+	if len(handlerArgs) < handler.NumArgs {
+		handler.Usage(appName, errWriter)
+		return 2
+	}
+
+	return handler.Run(handlerArgs, os.Stdin, os.Stdout, os.Stderr)
 }
 
-func getHandler(name string, args []string, outWriter io.Writer, errWriter io.Writer) (func([]string, io.Reader, io.Writer, io.Writer) int, error) {
+func getHandlerByAppName(args []string) (appName string, handler *Command, err error) {
+	appName = path.Base(args[0])
+	handler, err = getHandler(appName)
+	return
+}
+
+func getHandlerByFirstArgument(args []string) (appName string, handler *Command, err error) {
+	if len(args) < 2 {
+		err = fmt.Errorf("parameter required")
+		return
+	}
+	handler, err = getHandler(args[1])
+	appName = fmt.Sprintf("%s %s", args[0], args[1])
+	return
+}
+
+func getHandler(name string) (*Command, error) {
 	for _, cmd := range (commands) {
 		if cmd.Name == name {
-			return cmd.Run, nil
+			return cmd, nil
 		}
 	}
 	return nil, fmt.Errorf("command '%s' not found", name)
@@ -77,7 +99,7 @@ func makeUsage() string {
 }
 
 func usage(errWriter io.Writer) {
-	errWriter.Write([]byte(makeUsage()))
+	fmt.Fprintln(errWriter, makeUsage())
 }
 
 func cleanup(errWriter io.Writer) {
