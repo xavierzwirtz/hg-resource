@@ -248,7 +248,7 @@ test_it_tries_to_rebase_repeatedly_in_race_conditions() {
   local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
   TEST_REPO_AT_REF_DIR="$rebased_repo"
   export TEST_REPO_AT_REF_DIR
-  put_uri_with_rebase_and_race_conditions $repo1 $src repo > $response\
+  put_uri_with_rebase_and_race_conditions $repo1 $src repo > $response
   unset TEST_REPO_AT_REF_DIR
 
   local baseref2=$(cat $background_commit_id_file)
