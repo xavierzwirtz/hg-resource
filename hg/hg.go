@@ -9,11 +9,12 @@ import (
 )
 
 type Repository struct {
-	Path         string
-	Branch       string
-	IncludePaths []string
-	ExcludePaths []string
-	TagFilter    string
+	Path                string
+	Branch              string
+	IncludePaths        []string
+	ExcludePaths        []string
+	TagFilter           string
+	SkipSslVerification bool
 }
 
 type HgMetadata struct {
@@ -80,6 +81,84 @@ func (self *Repository) pull(insecure bool) error {
 	return nil
 }
 
+func (self *Repository) PullWithRebase(sourceUri string, branch string) (output []byte, err error) {
+	_, output, err = self.run("pull", []string{
+		"-q",
+		"--cwd", self.Path,
+		"--config", "extensions.rebase=",
+		"--config", "paths.push-target=" + sourceUri,
+		"--rebase",
+		"--branch", branch,
+		"push-target",
+	})
+	if err != nil {
+		err = fmt.Errorf("Error pulling/rebasing from: %s: %s", sourceUri, err)
+	}
+	return
+}
+
+func (self *Repository) CloneAtCommit(sourceUri string, commitId string) (output []byte, err error) {
+	_, output, err = self.run("clone", []string{
+		"-q",
+		"--rev", commitId,
+		sourceUri,
+		self.Path,
+	})
+	if err != nil {
+		err = fmt.Errorf("Error cloning repository %s@%s: %s", sourceUri, commitId, err)
+	}
+
+	return
+}
+
+func (self *Repository) SetDraftPhase() error {
+	_, _, stderr, err := runHg("phase", []string{
+		"--cwd", self.Path,
+		"--force",
+		"--draft",
+	}, false)
+	if err != nil {
+		return fmt.Errorf("Error setting repo phase to draft: %s\nStderr: %s", err, stderr)
+	}
+
+	return nil
+}
+
+func (self *Repository) Push(destUri string, branch string) (output []byte, err error) {
+	_, output, err = self.run("push", []string{
+		"--cwd", self.Path,
+		"--config", "paths.push-target=" + destUri,
+		"--branch", branch,
+		"push-target",
+	})
+	if err != nil {
+		err = fmt.Errorf("Error pushing to %s: %s", destUri, err)
+	}
+
+	return
+}
+
+func (self *Repository) Tag(tagValue string) error {
+	_, _, stderr, err := runHg("tag", []string{
+		"--cwd", self.Path,
+		tagValue,
+	}, false)
+	if err != nil {
+		return fmt.Errorf("Error tagging current commit: %s\nStderr: %s", err, stderr)
+	}
+
+	return nil
+}
+
+func (self *Repository) Delete() error {
+	err := os.RemoveAll(self.Path)
+	if err != nil {
+		return fmt.Errorf("Error deleting repository: %s", err)
+	}
+
+	return nil
+}
+
 func (self *Repository) Checkout(commitId string) error {
 	_, _, stderr, err := runHg("checkout", []string{
 		"-q",
@@ -127,6 +206,19 @@ func (self *Repository) GetLatestCommitId() (string, error) {
 	return stdout, nil
 }
 
+func (self *Repository) GetCurrentCommitId() (string, error) {
+	_, stdout, stderr, err := runHg("log", []string{
+		"--cwd", self.Path,
+		"--rev", ".",
+		"--template", "{node}",
+	}, false)
+
+	if err != nil {
+		return "", fmt.Errorf("Error getting current commit id: %s\nStderr: %s", err, stderr)
+	}
+	return stdout, nil
+}
+
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
@@ -163,6 +255,7 @@ func (self *Repository) maybeTagFilter() string {
 
 func (self *Repository) Metadata(commitId string) (fullCommitId string, metadata []HgMetadata, err error) {
 	// TODO use single call to hg, e.g. via json template + date conversion in go
+	// TODO date format in json is: [epochSeconds, secondOffsetFromUTC]
 	_, fullCommitId, stderr, err := runHg("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
@@ -226,6 +319,22 @@ func (self *Repository) Metadata(commitId string) (fullCommitId string, metadata
 	return
 }
 
+func (self *Repository) run(command string, args []string) (cmd *exec.Cmd, output []byte, err error) {
+	hgArgs := make([]string, 1, len(args) + 1)
+	hgArgs[0] = command
+
+	if self.SkipSslVerification && commandTakesInsecureOption(command) {
+		hgArgs = append(hgArgs, "--insecure")
+	}
+	hgArgs = append(hgArgs, args...)
+
+	cmd = exec.Command("hg", hgArgs...)
+
+	output, err = cmd.CombinedOutput()
+	return
+}
+
+// TODO use run() everywhere
 func runHg(command string, args []string, insecure bool) (cmd *exec.Cmd, stdout string, stderr string, err error) {
 	outBuf := new(bytes.Buffer)
 	errBuf := new(bytes.Buffer)

@@ -1,6 +1,15 @@
 package main
 
-import "io"
+import (
+	"io"
+	"fmt"
+	"github.com/andreasf/hg-resource/hg"
+	"path"
+	"os"
+	"io/ioutil"
+	"time"
+	"strings"
+)
 
 var cmdOutName string = "out"
 var cmdOut = &Command{
@@ -8,7 +17,255 @@ var cmdOut = &Command{
 	Run: runOut,
 }
 
+type PushParams struct {
+	Branch     string
+	SourcePath string
+	DestUri    string
+	TagValue   string
+	Rebase     bool
+}
+
+const maxRebaseRetries = 10
+
 func runOut(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) int {
-	errWriter.Write([]byte("Not implemented"))
-	return 1
+	if len(args) < 2 {
+		outUsage(args[0], errWriter)
+		return 2
+	}
+
+	source := args[1]
+	input, err := parseInput(inReader)
+
+	if err != nil {
+		fmt.Fprintf(errWriter, "Error parsing input: %s\n", err)
+		return 1
+	}
+
+	validatedParams, err := validateInput(input, source)
+	if err != nil {
+		fmt.Fprintln(errWriter, err)
+		return 1
+	}
+
+	if len(input.Source.PrivateKey) != 0 {
+		err = loadSshPrivateKey(input.Source.PrivateKey)
+		if err != nil {
+			fmt.Fprintln(errWriter, err)
+			return 1
+		}
+	}
+
+	sourceRepo := &hg.Repository{
+		Path: validatedParams.SourcePath,
+		Branch: validatedParams.Branch,
+		SkipSslVerification: input.Source.SkipSslVerification,
+	}
+
+	commitId, err := sourceRepo.GetCurrentCommitId()
+	if err != nil {
+		fmt.Fprintln(errWriter, err)
+		return 1
+	}
+
+	// clone source into temporary directory, up to the current (not latest) commit id, thus truncating history
+	tempRepo, tempRepoCleanup, err := cloneAtCommitIntoTempDir(sourceRepo, commitId, errWriter)
+	defer tempRepoCleanup(errWriter)
+
+	var jsonOutput InOutput
+	if validatedParams.Rebase {
+		jsonOutput, err = rebaseAndPush(tempRepo, validatedParams, maxRebaseRetries, errWriter)
+		if err != nil {
+			fmt.Fprintln(errWriter, err)
+			return 1
+		}
+
+	} else {
+		output, err := tempRepo.Push(validatedParams.DestUri, validatedParams.Branch)
+		errWriter.Write(output)
+		if err != nil {
+			fmt.Fprintln(errWriter, err)
+			return 1
+		}
+
+		jsonOutput, err = getJsonOutputForCurrentCommit(tempRepo)
+		if err != nil {
+			fmt.Fprintf(errWriter, "Error retrieving metadata from temp repository: %s", err)
+			return 1
+		}
+	}
+
+	WriteJson(outWriter, jsonOutput)
+	return 0
+}
+
+func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, errWriter io.Writer) (jsonOutput InOutput, err error) {
+	for pushAttempt := 0; pushAttempt < maxRetries; pushAttempt++ {
+		var output []byte
+		fmt.Fprintf(errWriter, "rebasing, attempt %d/%d...\n", pushAttempt + 1, maxRetries)
+		output, err = tempRepo.PullWithRebase(params.DestUri, params.Branch)
+		errWriter.Write(output)
+		if err != nil {
+			return
+		}
+
+		jsonOutput, err = getJsonOutputForCurrentCommit(tempRepo)
+		if err != nil {
+			return
+		}
+
+		if len(params.TagValue) > 0 {
+			err = tempRepo.Tag(params.TagValue)
+			if err != nil {
+				return
+			}
+		}
+
+		if len(os.Getenv("TEST_RACE_CONDITIONS")) > 0 {
+			time.Sleep(2 * time.Second)
+		}
+
+		output, err = tempRepo.Push(params.DestUri, params.Branch)
+		errWriter.Write(output)
+		if err == nil {
+			fmt.Fprintf(errWriter, "pushed\n")
+			return
+		}
+		if !isNonFastForwardError(string(output)) {
+			fmt.Fprintln(errWriter, "failed with non-rebase error\n")
+			return
+		}
+	}
+	err = fmt.Errorf("Error: too many retries")
+	return
+}
+
+func getJsonOutputForCurrentCommit(repo *hg.Repository) (output InOutput, err error) {
+	var commitId string
+	commitId, err = repo.GetCurrentCommitId()
+	if err != nil {
+		err = fmt.Errorf("Error getting rebased commit id from temp repo: %s", err)
+		return
+	}
+
+	var metadata []hg.HgMetadata
+	_, metadata, err = repo.Metadata(commitId)
+	if err != nil {
+		err = fmt.Errorf("Error getting metadata from rebased commit in temp repo: %s", err)
+		return
+	}
+
+	output = InOutput{
+		Version: Version{
+			Ref: commitId,
+		},
+		Metadata: metadata,
+	}
+	return
+}
+
+func isNonFastForwardError(hgStderr string) bool {
+	lines := strings.Split(hgStderr, "\n")
+	for _, line := range (lines) {
+		if strings.HasPrefix(line, "abort: push creates new remote head") {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneAtCommitIntoTempDir(sourceRepo *hg.Repository, commitId string, errWriter io.Writer) (tempRepo *hg.Repository, cleanupFunc func(io.Writer), err error) {
+	tempRepoDir, err := getTempDirForCommit(commitId)
+	if err != nil {
+		return
+	}
+	tempRepo = &hg.Repository{
+		Path: tempRepoDir,
+		Branch: sourceRepo.Branch,
+		SkipSslVerification: sourceRepo.SkipSslVerification,
+	}
+	cleanupFunc = func(errWriter io.Writer) {
+		envOverride := os.Getenv("TEST_REPO_AT_REF_DIR")
+		if envOverride != tempRepo.Path {
+			err = tempRepo.Delete()
+			if err != nil {
+				fmt.Fprintln(errWriter, err)
+			}
+		}
+	}
+
+	output, err := tempRepo.CloneAtCommit(sourceRepo.Path, commitId)
+	errWriter.Write(output)
+	if err != nil {
+		return
+	}
+
+	err = tempRepo.SetDraftPhase()
+	if err != nil {
+		return
+	}
+	return
+}
+
+func validateInput(input *JsonInput, sourceDir string) (validated PushParams, err error) {
+	requiredParams := []string{
+		input.Source.Uri, "uri",
+		input.Source.Branch, "branch",
+		input.Params.Repository, "repository",
+	}
+	for i, value := range (requiredParams) {
+		if len(value) == 0 {
+			err = fmt.Errorf("Error: invalid payload (missing %s)", requiredParams[i + 1])
+			return
+		}
+	}
+	validated.DestUri = input.Source.Uri
+	validated.Branch = input.Source.Branch
+	validated.Rebase = input.Params.Rebase
+
+	validated.SourcePath = path.Join(sourceDir, input.Params.Repository)
+
+	if len(input.Params.Tag) > 0 {
+		if !validated.Rebase {
+			err = fmt.Errorf("Error: tag parameter requires rebase option: tagging in Mercurial works by inserting a commit")
+			return
+		}
+
+		tagFile := path.Join(sourceDir, input.Params.Tag)
+		var tagFileInfo os.FileInfo
+		tagFileInfo, err = os.Stat(tagFile)
+		if err != nil || tagFileInfo.IsDir() {
+			err = fmt.Errorf("Error: tag file '%s' does not exist: %s", tagFile, err)
+			return
+		}
+
+		var tagFileContent []byte
+		tagFileContent, err = ioutil.ReadFile(tagFile)
+		if err != nil {
+			err = fmt.Errorf("Error reading tag file '%s': %s\n", tagFile, err)
+			return
+		}
+		validated.TagValue = input.Params.TagPrefix + string(tagFileContent)
+	}
+
+	return
+}
+
+func getTempDirForCommit(commitId string) (string, error) {
+	envOverride := os.Getenv("TEST_REPO_AT_REF_DIR")
+	if len(envOverride) > 0 {
+		return envOverride, nil
+	}
+
+	parentDir := getTempDir()
+	prefix := "hg-repo-at-" + commitId
+	dirForCommit, err := ioutil.TempDir(parentDir, prefix)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create temp dir to clone into: %s", err)
+	}
+	return dirForCommit, nil
+}
+
+func outUsage(appName string, err io.Writer) {
+	errMsg := fmt.Sprintf("Usage: %s <path/to/source>", appName)
+	err.Write([]byte(errMsg))
 }

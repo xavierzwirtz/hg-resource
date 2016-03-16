@@ -21,20 +21,28 @@ type Version struct {
 	Ref string `json:"ref"`
 }
 
-type InParams struct {
+type Params struct {
+	Repository string `json:"repository"`
+	Tag string `json:"tag"`
+	TagPrefix string `json:"tag_prefix"`
+	Rebase bool `json:"rebase"`
+}
+
+type JsonInput struct {
 	Source  Source `json:"source"`
 	Version Version `json:"version"`
+	Params Params `json:"params"`
 }
 
 type VersionList []Version
 
-func parseInput(inReader io.Reader) (*InParams, error) {
+func parseInput(inReader io.Reader) (*JsonInput, error) {
 	bytes, err := readAllBytes(inReader)
 	if err != nil {
 		return nil, err
 	}
 
-	params := InParams{}
+	params := JsonInput{}
 	json.Unmarshal(bytes, &params)
 	return &params, nil
 }

@@ -43,7 +43,7 @@ var _ = Describe("Json", func() {
 		})
 
 		It("encoding/json deserialize everything", func() {
-			var result InParams
+			var result JsonInput
 			json.Unmarshal([]byte(checkInput), &result)
 			Expect(result.Source.Uri).To(Equal("https://github.com/github/example"))
 			Expect(result.Source.PrivateKey).To(Equal("xyz"))
