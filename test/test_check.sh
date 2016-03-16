@@ -305,8 +305,6 @@ test_backslash_is_escaped_in_include_param() {
   local ref2=$(make_commit_to_file $repo $filenameB)
   local ref3=$(make_commit_to_file $repo $filenameC)
 
-  hg log --cwd $repo --stat
-
   local expected1=$(echo "[{\"ref\": $(echo $ref2 | jq -R .)}]" | jq ".")
   assertEquals "$expected1" "$(check_uri_paths $repo $filenameB | jq '.')"
 
