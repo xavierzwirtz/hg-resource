@@ -71,7 +71,7 @@ func writeLatestCommit(repo *hg.Repository, outWriter io.Writer, errWriter io.Wr
 		return 1
 	}
 
-	latestVersion := VersionList{
+	latestVersion := []Version{
 		Version{
 			Ref: latestCommit,
 		},
@@ -92,7 +92,7 @@ func writeCommitsSince(parentCommit string, repo *hg.Repository, outWriter io.Wr
 		return writeLatestCommit(repo, outWriter, errWriter)
 	}
 
-	commitList := make(VersionList, len(commits))
+	commitList := make([]Version, len(commits))
 	for i, commit := range (commits) {
 		commitList[i] = Version{
 			Ref: commit,

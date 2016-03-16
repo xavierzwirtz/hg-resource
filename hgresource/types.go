@@ -40,8 +40,6 @@ type JsonOutput struct {
 	Version Version `json:"version"`
 }
 
-type VersionList []Version
-
 func parseInput(inReader io.Reader) (*JsonInput, error) {
 	bytes, err := readAllBytes(inReader)
 	if err != nil {
