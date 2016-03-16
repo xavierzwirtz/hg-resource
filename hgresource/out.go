@@ -114,7 +114,8 @@ func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, e
 		}
 
 		if len(params.TagValue) > 0 {
-			err = tempRepo.Tag(params.TagValue)
+			output, err = tempRepo.Tag(params.TagValue)
+			errWriter.Write(output)
 			if err != nil {
 				return
 			}
@@ -199,7 +200,8 @@ func cloneAtCommitIntoTempDir(sourceRepo *hg.Repository, commitId string, errWri
 		return
 	}
 
-	err = tempRepo.SetDraftPhase()
+	output, err = tempRepo.SetDraftPhase()
+	errWriter.Write(output)
 	if err != nil {
 		return
 	}

@@ -31,12 +31,13 @@ func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.
 		return 1
 	}
 
-	repo := hg.Repository{
+	repo := &hg.Repository{
 		Path: destination,
 		Branch: params.Source.Branch,
 		IncludePaths: params.Source.IncludePaths,
 		ExcludePaths: params.Source.ExcludePaths,
 		TagFilter: params.Source.TagFilter,
+		SkipSslVerification: params.Source.SkipSslVerification,
 	}
 
 	if len(repo.Branch) == 0 {
@@ -63,37 +64,33 @@ func runIn(args []string, inReader io.Reader, outWriter io.Writer, errWriter io.
 		}
 	}
 
-	err = repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	output, err := repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	errWriter.Write(output)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
 		return 1
 	}
 
-	err = repo.Checkout(commitId)
+	output, err = repo.Checkout(commitId)
+	errWriter.Write(output)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
 		return 1
 	}
 
-	err = repo.Purge()
+	output, err = repo.Purge()
+	errWriter.Write(output)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
 		return 1
 	}
 
-	fullCommitId, metadata, err := repo.Metadata(commitId)
+	jsonOutput, err := getJsonOutputForCurrentCommit(repo)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
 		return 1
 	}
-
-	output := InOutput{
-		Metadata: metadata,
-		Version: Version{
-			Ref: fullCommitId,
-		},
-	}
-	WriteJson(outWriter, output)
+	WriteJson(outWriter, jsonOutput)
 	return 0
 }
 

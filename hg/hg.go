@@ -2,7 +2,6 @@ package hg
 
 import (
 	"os/exec"
-	"bytes"
 	"fmt"
 	"strings"
 	"os"
@@ -23,13 +22,13 @@ type HgMetadata struct {
 	Type  string `json:"type,omitempty"`
 }
 
-func (self *Repository) CloneOrPull(sourceUri string, insecure bool) error {
+func (self *Repository) CloneOrPull(sourceUri string, insecure bool) ([]byte, error) {
 	if len(self.Path) == 0 {
-		return fmt.Errorf("CloneOrPull: repository path must be set")
+		return []byte{}, fmt.Errorf("CloneOrPull: repository path must be set")
 	}
 
 	if len(self.Branch) == 0 {
-		return fmt.Errorf("CloneOrPull: branch must be set")
+		return []byte{}, fmt.Errorf("CloneOrPull: branch must be set")
 	}
 
 	dirInfo, errIfNotExists := os.Stat(self.Path)
@@ -40,45 +39,48 @@ func (self *Repository) CloneOrPull(sourceUri string, insecure bool) error {
 	}
 }
 
-func (self *Repository) clone(sourceUri string, insecure bool) error {
-	err := os.RemoveAll(self.Path)
+func (self *Repository) clone(sourceUri string, insecure bool) (output []byte, err error) {
+	err = os.RemoveAll(self.Path)
 	if err != nil {
-		return fmt.Errorf("CloneOrUpdate: %s", err)
+		err = fmt.Errorf("CloneOrUpdate: %s", err)
+		return
 	}
 
-	_, _, stderr, err := runHg("clone", []string{
+	_, output, err = self.run("clone", []string{
 		"-q",
 		"--branch", self.Branch,
 		sourceUri,
 		self.Path,
-	}, insecure)
+	})
 	if err != nil {
-		return fmt.Errorf("Error cloning repository from %s: %s\nStderr: %s", sourceUri, err, stderr)
+		err = fmt.Errorf("Error cloning repository from %s: %s", sourceUri, err)
 	}
 
-	return nil
+	return
 }
 
-func (self *Repository) pull(insecure bool) error {
-	_, _, stderr, err := runHg("pull", []string{
+func (self *Repository) pull(insecure bool) (output []byte, err error) {
+	_, output, err = self.run("pull", []string{
 		"-q",
 		"--cwd", self.Path,
-	}, insecure)
+	})
 	if err != nil {
-		return fmt.Errorf("Error pulling changes from repository: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error pulling changes from repository: %s\nStderr", err)
+		return
 	}
 
-	_, _, stderr, err = runHg("checkout", []string{
+	_, checkoutOutput, err := self.run("checkout", []string{
 		"-q",
 		"--cwd", self.Path,
 		"--clean",
 		"--rev", "tip",
-	}, insecure)
+	})
+	output = append(output, checkoutOutput...)
 	if err != nil {
-		return fmt.Errorf("Error updating working directory to tip: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error updating working directory to tip: %s", err)
 	}
 
-	return nil
+	return
 }
 
 func (self *Repository) PullWithRebase(sourceUri string, branch string) (output []byte, err error) {
@@ -111,17 +113,17 @@ func (self *Repository) CloneAtCommit(sourceUri string, commitId string) (output
 	return
 }
 
-func (self *Repository) SetDraftPhase() error {
-	_, _, stderr, err := runHg("phase", []string{
+func (self *Repository) SetDraftPhase() (output []byte, err error) {
+	_, output, err = self.run("phase", []string{
 		"--cwd", self.Path,
 		"--force",
 		"--draft",
-	}, false)
+	})
 	if err != nil {
-		return fmt.Errorf("Error setting repo phase to draft: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error setting repo phase to draft: %s", err)
 	}
 
-	return nil
+	return
 }
 
 func (self *Repository) Push(destUri string, branch string) (output []byte, err error) {
@@ -138,16 +140,16 @@ func (self *Repository) Push(destUri string, branch string) (output []byte, err 
 	return
 }
 
-func (self *Repository) Tag(tagValue string) error {
-	_, _, stderr, err := runHg("tag", []string{
+func (self *Repository) Tag(tagValue string) (output []byte, err error) {
+	_, output, err = self.run("tag", []string{
 		"--cwd", self.Path,
 		tagValue,
-	}, false)
+	})
 	if err != nil {
-		return fmt.Errorf("Error tagging current commit: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error tagging current commit: %s", err)
 	}
 
-	return nil
+	return
 }
 
 func (self *Repository) Delete() error {
@@ -159,64 +161,64 @@ func (self *Repository) Delete() error {
 	return nil
 }
 
-func (self *Repository) Checkout(commitId string) error {
-	_, _, stderr, err := runHg("checkout", []string{
+func (self *Repository) Checkout(commitId string) (output []byte, err error) {
+	_, output, err = self.run("checkout", []string{
 		"-q",
 		"--cwd", self.Path,
 		"--clean",
 		"--rev", commitId,
-	}, false)
-
+	})
 	if err != nil {
-		return fmt.Errorf("Error checking out %s: %s\nStderr: %s", commitId, err, stderr)
+		err = fmt.Errorf("Error checking out %s: %s", commitId, err)
 	}
 
-	return nil
+	return
 }
 
-func (self *Repository) Purge() error {
-	_, _, stderr, err := runHg("purge", []string{
+func (self *Repository) Purge() (output []byte, err error) {
+	_, output, err = self.run("purge", []string{
 		"--config", "extensions.purge=",
 		"--cwd", self.Path,
 		"--all",
-	}, false)
-
+	})
 	if err != nil {
-		return fmt.Errorf("Error purging repository: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error purging repository: %s", err)
 	}
 
-	return nil
+	return
 }
 
-func (self *Repository) GetLatestCommitId() (string, error) {
+func (self *Repository) GetLatestCommitId() (output string, err error) {
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
 	tagFilter := self.maybeTagFilter()
 	revSet := fmt.Sprintf("last((((%s) - (%s)) & %s) - desc('[ci skip]'))", include, exclude, tagFilter)
 
-	_, stdout, stderr, err := runHg("log", []string{
+	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", revSet,
 		"--template", "{node}",
-	}, false)
-
+	})
+	output = string(outBytes)
 	if err != nil {
-		return "", fmt.Errorf("Error getting latest commit id: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error getting latest commit id: %s", err)
 	}
-	return stdout, nil
+
+	return
 }
 
-func (self *Repository) GetCurrentCommitId() (string, error) {
-	_, stdout, stderr, err := runHg("log", []string{
+func (self *Repository) GetCurrentCommitId() (output string, err error) {
+	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", ".",
 		"--template", "{node}",
-	}, false)
-
+	})
+	output = string(outBytes)
 	if err != nil {
-		return "", fmt.Errorf("Error getting current commit id: %s\nStderr: %s", err, stderr)
+		err = fmt.Errorf("Error getting current commit id: %s", err)
 	}
-	return stdout, nil
+
+	return
 }
 
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
@@ -226,17 +228,18 @@ func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	revSet := fmt.Sprintf("(descendants(%s) - %s) & %s & ((%s) - (%s)) - desc('[ci skip]')",
 		commitId, commitId, tagFilter, include, exclude)
 
-	_, stdout, stderr, err := runHg("log", []string{
+	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", revSet,
 		"--template", "{node}\n",
-	}, false)
+	})
 
+	output := string(outBytes)
 	if err != nil {
-		return []string{}, fmt.Errorf("Error getting descendant commits of %s: %s\nStderr: %s", commitId, err, stderr)
+		return []string{}, fmt.Errorf("Error getting descendant commits of %s: %s\n%s", commitId, err, output)
 	}
 
-	trimmed := strings.Trim(stdout, "\n\r ")
+	trimmed := strings.Trim(output, "\n\r ")
 	if len(trimmed) == 0 {
 		return []string{}, nil
 	}
@@ -256,43 +259,47 @@ func (self *Repository) maybeTagFilter() string {
 func (self *Repository) Metadata(commitId string) (fullCommitId string, metadata []HgMetadata, err error) {
 	// TODO use single call to hg, e.g. via json template + date conversion in go
 	// TODO date format in json is: [epochSeconds, secondOffsetFromUTC]
-	_, fullCommitId, stderr, err := runHg("log", []string{
+	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
 		"--template", "{node}",
-	}, false)
+	})
+	fullCommitId = string(outBytes)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, fullCommitId)
 		return
 	}
 
-	_, author, stderr, err := runHg("log", []string{
+	_, outBytes, err = self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
 		"--template", "{author}",
-	}, false)
+	})
+	author := string(outBytes)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, author)
 		return
 	}
 
-	_, date, stderr, err := runHg("log", []string{
+	_, outBytes, err = self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
 		"--template", "{date|isodatesec}",
-	}, false)
+	})
+	date := string(outBytes)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, date)
 		return
 	}
 
-	_, message, stderr, err := runHg("log", []string{
+	_, outBytes, err = self.run("log", []string{
 		"--cwd", self.Path,
 		"--rev", commitId,
 		"--template", "{desc}",
-	}, false)
+	})
+	message := string(outBytes)
 	if err != nil {
-		err = fmt.Errorf("Error getting metadata on %s: %s\nStderr: %s", commitId, err, stderr)
+		err = fmt.Errorf("Error getting metadata on %s: %s\n%s", commitId, err, message)
 		return
 	}
 
@@ -331,28 +338,6 @@ func (self *Repository) run(command string, args []string) (cmd *exec.Cmd, outpu
 	cmd = exec.Command("hg", hgArgs...)
 
 	output, err = cmd.CombinedOutput()
-	return
-}
-
-// TODO use run() everywhere
-func runHg(command string, args []string, insecure bool) (cmd *exec.Cmd, stdout string, stderr string, err error) {
-	outBuf := new(bytes.Buffer)
-	errBuf := new(bytes.Buffer)
-
-	hgArgs := make([]string, 1, len(args) + 1)
-	hgArgs[0] = command
-	if insecure && commandTakesInsecureOption(command) {
-		hgArgs = append(hgArgs, "--insecure")
-	}
-	hgArgs = append(hgArgs, args...)
-
-	cmd = exec.Command("hg", hgArgs...)
-	cmd.Stdout = outBuf
-	cmd.Stderr = errBuf
-
-	err = cmd.Run()
-	stdout = outBuf.String()
-	stderr = errBuf.String()
 	return
 }
 

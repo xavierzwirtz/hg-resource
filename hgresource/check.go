@@ -26,6 +26,7 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 		IncludePaths: params.Source.IncludePaths,
 		ExcludePaths: params.Source.ExcludePaths,
 		TagFilter: params.Source.TagFilter,
+		SkipSslVerification: params.Source.SkipSslVerification,
 	}
 
 	if len(repo.Branch) == 0 {
@@ -45,7 +46,8 @@ func runCheck(args []string, inReader io.Reader, outWriter io.Writer, errWriter 
 		return 1
 	}
 
-	err = repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	output, err := repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	errWriter.Write(output)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
 		return 1
