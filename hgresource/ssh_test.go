@@ -95,6 +95,27 @@ var _ = Describe("Ssh", func() {
 
 	})
 
+	Context("When saving the SSH private key and the SSH config file", func() {
+		var previousHome string
+
+		BeforeEach(func() {
+			previousHome = os.Getenv("HOME")
+			os.Setenv("HOME", "/some/home/directory")
+		})
+
+		It("can find the users home directory", func() {
+			homeDir, err := getHomeDir()
+
+
+			Expect(err).To(BeNil())
+			Expect(homeDir).To(Equal("/some/home/directory"))
+		})
+
+		AfterEach(func() {
+			os.Setenv("HOME", previousHome)
+		})
+	})
+
 	Context("When saving a file atomically", func() {
 		var dirname string
 		var filename string

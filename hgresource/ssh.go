@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"bytes"
 	"strings"
-	"os/user"
 	"strconv"
 )
 
@@ -59,11 +58,11 @@ func loadSshPrivateKey(privateKeyPem string) error {
 }
 
 func getHomeDir() (string, error) {
-	user, err := user.Current()
-	if err != nil {
-		return "", fmt.Errorf("Error retrieving home directory: %s", err)
+	homeDir := os.Getenv("HOME")
+	if len(homeDir) == 0 {
+		return "", fmt.Errorf("Unable to retrieve home directory from $HOME")
 	}
-	return user.HomeDir, nil
+	return homeDir, nil
 }
 
 func addSshKey(keyFilePath string) error {
