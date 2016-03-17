@@ -7,6 +7,7 @@ import (
 	"os"
 	"encoding/json"
 	"time"
+	"path"
 )
 
 type Repository struct {
@@ -46,21 +47,15 @@ func (self *Repository) CloneOrPull(sourceUri string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("CloneOrPull: branch must be set")
 	}
 
-	dirInfo, errIfNotExists := os.Stat(self.Path)
+	dirInfo, errIfNotExists := os.Stat(path.Join(self.Path, ".hg"))
 	if errIfNotExists != nil || !dirInfo.IsDir() {
-		return self.clone(sourceUri, insecure)
+		return self.clone(sourceUri)
 	} else {
-		return self.pull(insecure)
+		return self.pull()
 	}
 }
 
-func (self *Repository) clone(sourceUri string, insecure bool) (output []byte, err error) {
-	err = os.RemoveAll(self.Path)
-	if err != nil {
-		err = fmt.Errorf("clone: %s", err)
-		return
-	}
-
+func (self *Repository) clone(sourceUri string) (output []byte, err error) {
 	_, output, err = self.run("clone", []string{
 		"-q",
 		"--branch", self.Branch,
