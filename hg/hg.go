@@ -37,7 +37,7 @@ type HgChangeset struct {
 	Parents   []string `json:"parents"`
 }
 
-func (self *Repository) CloneOrPull(sourceUri string, insecure bool) ([]byte, error) {
+func (self *Repository) CloneOrPull(sourceUri string) ([]byte, error) {
 	if len(self.Path) == 0 {
 		return []byte{}, fmt.Errorf("CloneOrPull: repository path must be set")
 	}
@@ -74,13 +74,13 @@ func (self *Repository) clone(sourceUri string, insecure bool) (output []byte, e
 	return
 }
 
-func (self *Repository) pull(insecure bool) (output []byte, err error) {
+func (self *Repository) pull() (output []byte, err error) {
 	_, output, err = self.run("pull", []string{
 		"-q",
 		"--cwd", self.Path,
 	})
 	if err != nil {
-		err = fmt.Errorf("Error pulling changes from repository: %s\nStderr", err)
+		err = fmt.Errorf("Error pulling changes from repository: %s", err)
 		return
 	}
 

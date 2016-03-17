@@ -33,7 +33,7 @@ func runCheck(args []string, params *JsonInput, outWriter io.Writer, errWriter i
 		return 1
 	}
 
-	output, err := repo.CloneOrPull(params.Source.Uri, params.Source.SkipSslVerification)
+	output, err := repo.CloneOrPull(params.Source.Uri)
 	errWriter.Write(output)
 	if err != nil {
 		fmt.Fprintln(errWriter, err)
