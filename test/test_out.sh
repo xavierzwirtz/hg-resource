@@ -34,9 +34,6 @@ test_it_can_put_to_url() {
   # create a tag to push
   local ref=$(make_tag $repo2 some-tag)
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
   put_uri $repo1 $src repo | jq -e "
     .version == {ref: $(echo $ref | jq -R .)}
   "
@@ -61,9 +58,6 @@ test_it_aborts_when_trying_to_tag_without_rebase_option() {
 
   echo some-tag-name > $src/some-tag-file
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
   ! put_uri_with_tag $repo1 $src some-tag-file repo || fail "expected tagging to fail without rebase option"
 }
 
@@ -80,9 +74,6 @@ test_it_can_put_to_url_with_tag_from_a_non_tip_working_dir() {
   hg checkout --cwd $repo2 $ref2
 
   echo some-tag-name > $src/some-tag-file
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
 
   put_uri_with_rebase_with_tag $repo1 $src some-tag-file repo | jq -e "
     .version == {ref: $(echo $ref2 | jq -R .)}
@@ -109,9 +100,6 @@ test_it_can_put_to_url_with_rebase() {
   local baseref=$(make_commit_to_file $repo1 some-other-file)
 
   local ref=$(make_commit $repo2)
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
 
   local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
 
@@ -155,9 +143,6 @@ test_it_can_put_to_url_with_rebase_with_tag() {
 
   echo some-tag-name > $src/some-tag-file
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd "$repo1" default
-
   local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
 
   local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
@@ -198,9 +183,6 @@ test_it_can_put_to_url_with_rebase_with_tag_and_prefix() {
 
   echo 1.0 > $src/some-tag-file
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
   local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
 
   local rebased_repo=$(mktemp -d "$TMPDIR/hg-repo-at-$ref.XXXXXX") 
@@ -236,9 +218,6 @@ test_it_tries_to_rebase_repeatedly_in_race_conditions() {
   local baseref1=$(make_commit_to_file $repo1 some-other-file)
 
   local ref=$(make_commit $repo2)
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
 
   local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
 
@@ -289,9 +268,6 @@ test_it_aborts_on_unknown_push_errors() {
 
   local ref=$(make_commit $repo2)
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
   local response=$(mktemp $TMPDIR/rebased-response.XXXXXX)
 
   delete_repository_after_1_second $repo1 &
@@ -318,9 +294,6 @@ test_it_checks_ssl_certificates() {
   # create a tag to push
   local ref=$(make_tag $repo2 some-tag)
 
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
-
   hg serve --cwd $repo1 --config 'web.allow_push=*' --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
   serve_pid=$!
   $(sleep 5; kill $serve_pid) &
@@ -341,9 +314,6 @@ test_it_can_put_with_ssl_cert_checks_disabled() {
   local tagged_commit=$(make_commit $repo2)
   # create a tag to push
   local ref=$(make_tag $repo2 some-tag)
-
-  # cannot push to repo while it's checked out to a branch
-  hg checkout --cwd $repo1 default
 
   hg serve --cwd $repo1 --config 'web.allow_push=*' --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
   serve_pid=$!
