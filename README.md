@@ -49,7 +49,7 @@ resources:
 - name: source-code
   type: hg
   source:
-    uri: https://hg.mozilla.org/mozilla-central/
+    uri: ssh://user@hg.example.com/my-repo
     branch: default
     private_key: |
       -----BEGIN RSA PRIVATE KEY-----
