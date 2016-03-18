@@ -193,13 +193,13 @@ func cloneAtCommitIntoTempDir(sourceRepo *hg.Repository, commitId string, errWri
 
 func validateInput(input *JsonInput, sourceDir string) (validated PushParams, err error) {
 	requiredParams := []string{
-		input.Source.Uri, "uri",
-		input.Source.Branch, "branch",
-		input.Params.Repository, "repository",
+		input.Source.Uri, "uri in resources[repo].source",
+		input.Source.Branch, "branch in resources[repo].source",
+		input.Params.Repository, "repository in <put step>.params",
 	}
 	for i, value := range (requiredParams) {
 		if len(value) == 0 {
-			err = fmt.Errorf("Error: invalid payload (missing %s)", requiredParams[i + 1])
+			err = fmt.Errorf("Error: invalid configuration (missing %s)", requiredParams[i + 1])
 			return
 		}
 	}
