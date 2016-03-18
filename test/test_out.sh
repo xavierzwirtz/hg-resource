@@ -47,6 +47,30 @@ test_it_can_put_to_url() {
   assertEquals "$tagged_commit" "$actual_commit_id_of_tag"
 }
 
+test_it_can_put_to_url_with_no_branch() {
+  local repo1=$(init_repo)
+
+  local src=$(mktemp -d $TMPDIR/put-src.XXXXXX)
+  local repo2=$src/repo
+  hg clone $repo1 $repo2
+
+  local tagged_commit=$(make_commit $repo2)
+  # create a tag to push
+  local ref=$(make_tag $repo2 some-tag)
+
+  put_uri_no_branch $repo1 $src repo | jq -e "
+    .version == {ref: $(echo $ref | jq -R .)}
+  "
+
+  # update working directory in repo1
+  hg checkout --cwd $repo1 default
+
+  test -e $repo1/some-file
+  test "$(get_working_dir_ref $repo1)" = $ref
+  local actual_commit_id_of_tag=$(hg log --cwd "$repo1" --limit 1 --rev some-tag --template '{node}')
+  assertEquals "$tagged_commit" "$actual_commit_id_of_tag"
+}
+
 test_it_aborts_when_trying_to_tag_without_rebase_option() {
   local repo1=$(init_repo)
 

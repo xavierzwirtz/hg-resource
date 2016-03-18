@@ -425,6 +425,17 @@ put_uri() {
   }" | ${resource_dir}/out "$2" | tee /dev/stderr
 }
 
+put_uri_no_branch() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .)
+    },
+    params: {
+      repository: $(echo $3 | jq -R .)
+    }
+  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+}
+
 put_uri_insecure() {
   jq -n "{
     source: {

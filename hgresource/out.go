@@ -194,7 +194,6 @@ func cloneAtCommitIntoTempDir(sourceRepo *hg.Repository, commitId string, errWri
 func validateInput(input *JsonInput, sourceDir string) (validated PushParams, err error) {
 	requiredParams := []string{
 		input.Source.Uri, "uri in resources[repo].source",
-		input.Source.Branch, "branch in resources[repo].source",
 		input.Params.Repository, "repository in <put step>.params",
 	}
 	for i, value := range (requiredParams) {
@@ -204,9 +203,12 @@ func validateInput(input *JsonInput, sourceDir string) (validated PushParams, er
 		}
 	}
 	validated.DestUri = input.Source.Uri
-	validated.Branch = input.Source.Branch
 	validated.Rebase = input.Params.Rebase
 
+	validated.Branch = input.Source.Branch
+	if len(validated.Branch) == 0 {
+		validated.Branch = defaultBranch
+	}
 	validated.SourcePath = path.Join(sourceDir, input.Params.Repository)
 
 	if len(input.Params.Tag) > 0 {
