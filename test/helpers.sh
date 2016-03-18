@@ -66,7 +66,6 @@ init_repo_with_submodule() {
   echo $project,$submodule
 }
 
-# TODO move to common
 get_working_dir_ref() {
   local dest=$1
   local commit_id=$(hg identify --cwd "$dest" --id)
