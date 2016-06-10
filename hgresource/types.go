@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"bytes"
-	"github.com/andreasf/hg-resource/hg"
+	"github.com/concourse/hg-resource/hg"
 )
 
 type Source struct {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"io"
-	"github.com/andreasf/hg-resource/hg"
+	"github.com/concourse/hg-resource/hg"
 	"fmt"
 	"path"
 )

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"github.com/andreasf/hg-resource/hg"
+	"github.com/concourse/hg-resource/hg"
 )
 
 const cmdInName string = "in"

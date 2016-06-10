@@ -3,7 +3,7 @@ package main
 import (
 	"io"
 	"fmt"
-	"github.com/andreasf/hg-resource/hg"
+	"github.com/concourse/hg-resource/hg"
 	"path"
 	"os"
 	"io/ioutil"
