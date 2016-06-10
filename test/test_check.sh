@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e -x -u
+set -e
 
 source $(dirname $0)/helpers.sh
 
@@ -340,6 +340,7 @@ test_backslash_is_escaped_in_include_param() {
 }
 
 test_it_checks_ssl_certificates() {
+  set -x
   local repo=$(init_repo)
   local ref1=$(make_commit $repo)
 
@@ -350,6 +351,7 @@ test_it_checks_ssl_certificates() {
   ! check_uri https://127.0.0.1:8000/ || fail "expected self-signed certificate to not be trusted"
   kill $serve_pid
   sleep 0.1
+  set +x
 }
 
 test_it_can_disable_ssl_certificate_verification() {
