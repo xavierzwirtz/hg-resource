@@ -13,4 +13,4 @@ outputs:
 - name: built-resource
 
 run:
-  path: gopath/src/github.com/concourse/hg-resource/scripts/ci
+  path: gopath/src/github.com/concourse/hg-resource/ci/unit
