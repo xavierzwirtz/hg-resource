@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -e -x -u
 
 source $(dirname $0)/helpers.sh
 
