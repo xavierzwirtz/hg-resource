@@ -4,6 +4,8 @@ set -e
 
 source $(dirname $0)/helpers.sh
 
+CERT=$(cd $(dirname $0) && pwd)/self_signed_cert_and_key.pem
+
 setUp() {
   export TMPDIR=$(mktemp -d ${TMPDIR_ROOT}/hg-tests.XXXXXX)
 }
@@ -344,7 +346,7 @@ test_it_checks_ssl_certificates() {
   local repo=$(init_repo)
   local ref1=$(make_commit $repo)
 
-  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $CERT &
   serve_pid=$!
   $(sleep 5; kill $serve_pid) &
 
@@ -358,7 +360,7 @@ test_it_can_disable_ssl_certificate_verification() {
   local repo=$(init_repo)
   local ref1=$(make_commit $repo)
 
-  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $(dirname $0)/self_signed_cert_and_key.pem &
+  hg serve --cwd $repo --address 127.0.0.1 --port 8000 --certificate $CERT &
   serve_pid=$!
   $(sleep 5; kill $serve_pid) &
 
