@@ -1,4 +1,4 @@
-FROM concourse/busyboxplus:hg
+FROM concourse/buildroot:hg
 
 ENV LANG C
 
