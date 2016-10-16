@@ -200,6 +200,15 @@ check_uri_insecure() {
   }" | ${resource_dir}/check | tee /dev/stderr
 }
 
+check_uri_with_branch() {
+  jq -n "{
+    source: {
+      uri: $(echo $1 | jq -R .),
+      branch: $(echo $2 | jq -R .)
+    }
+  }" | ${resource_dir}/check | tee /dev/stderr
+}
+
 check_uri_with_key() {
   jq -n "{
     source: {
@@ -258,6 +267,24 @@ check_uri_from() {
     },
     version: {
       ref: $(echo $2 | jq -R .)
+    }
+  }" | ${resource_dir}/check | tee /dev/stderr
+}
+
+check_uri_with_branch_from() {
+  local uri=$1
+  local ref=$2
+  local branch=$3
+
+  shift 3
+
+  jq -n "{
+    source: {
+      uri: $(echo $uri | jq -R .),
+      branch: $(echo $branch | jq -R .)
+    },
+    version: {
+      ref: $(echo $ref | jq -R .)
     }
   }" | ${resource_dir}/check | tee /dev/stderr
 }
