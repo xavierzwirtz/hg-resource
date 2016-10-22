@@ -74,7 +74,7 @@ Pushing local commits to the repo:
 
 The repository is cloned (or pulled if already present), and any commits
 made after the given version are returned. If no version is given, the ref
-for `tip` is returned.
+for the head of the branch is returned.
 
 Any commits that contain the string `[ci skip]` will be ignored. This
 allows you to commit to your repository without triggering a new version.

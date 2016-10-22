@@ -110,6 +110,22 @@ test_it_checks_correct_branch() {
   assertEquals "$expected6" "$(check_uri_with_branch_from $repo $ref2 some-branch | jq '.')"
 }
 
+test_check_checks_out_expected_branch_after_clone_and_pull() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit_to_branch $repo some-branch )
+  local ref2=$(make_commit $repo)
+
+  # first check triggers clone
+  local expected1=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected1" "$(check_uri_with_branch $repo some-branch | jq '.')"
+  assertEquals "some-branch" $(hg branch --cwd $TMPDIR/hg-resource-repo-cache)
+
+  # second check triggers pull
+  local expected2=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected2" "$(check_uri_with_branch $repo some-branch | jq '.')"
+  assertEquals "some-branch" $(hg branch --cwd $TMPDIR/hg-resource-repo-cache)
+}
+
 test_it_checks_given_paths() {
   local repo=$(init_repo)
   local ref1=$(make_commit_to_file $repo file-a)

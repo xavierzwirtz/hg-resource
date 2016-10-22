@@ -83,7 +83,7 @@ func (self *Repository) pull() (output []byte, err error) {
 		"-q",
 		"--cwd", self.Path,
 		"--clean",
-		"--rev", "tip",
+		"--rev", self.Branch,
 	})
 	output = append(output, checkoutOutput...)
 	if err != nil {
