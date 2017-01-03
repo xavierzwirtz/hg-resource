@@ -9,7 +9,7 @@ import (
 var _ = Describe("Hg", func() {
 	repo := Repository{
 		Path: "/path/to/repo",
-		Branch: "re:a_branch",
+		Branch: "a_branch",
 		IncludePaths: []string{
 			"/path/1",
 			"/path/2",
@@ -25,11 +25,6 @@ var _ = Describe("Hg", func() {
 	Context("When making revset query fragments", func() {
 		It("joins all given paths", func() {
 			Expect(unionOfPaths(repo.IncludePaths)).To(Equal("file('re:/path/1')|file('re:/path/2')|file('re:/path/3')"))
-		})
-
-		It("produces the correct branch fragment", func() {
-			Expect(repo.makeBranchQueryFragment()).To(Equal("literal:re:a_branch"))
-			Expect(emptyRepo.makeBranchQueryFragment()).To(Equal(""))
 		})
 
 		It("produces the correct include fragment", func() {
