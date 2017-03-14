@@ -74,7 +74,56 @@ test_it_skips_ignored_paths() {
     {\"ref\": $(echo $ref5 | jq -R .)}
   ]" | jq ".")
   assertEquals "$expected5" "$(check_uri_from_ignoring $repo $ref1 file-c file-b | jq '.')"
+}
 
+test_it_checks_correct_branch() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+  local ref2=$(make_commit_to_branch $repo some-branch )
+
+  # Test initial clone and that check doesn't see descendants that aren't in the given branch
+  local expected1=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected1" "$(check_uri $repo | jq '.')"
+
+  # Test check's first pull is still returning the same result, as above
+  local expected2=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected2" "$(check_uri $repo | jq '.')"
+
+  # Test check doesn't see changes to in other descendant branches when checking from a revision
+  local ref3=$(make_commit_to_branch $repo some-branch )
+
+  local expected3="[]"
+  assertEquals "$expected3" "$(check_uri_from $repo $ref1 | jq '.')"
+
+  # Test check only sees changes to its branch when checking from a revision
+  local ref4=$(make_commit $repo)
+
+  local expected4=$(echo "[{\"ref\": $(echo $ref4 | jq -R .)}]"|jq ".")
+  assertEquals "$expected4" "$(check_uri_from $repo $ref1 | jq '.')"
+
+  # Test check doesn't see changes to in parent branches
+  local expected5=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]"|jq ".")
+  assertEquals "$expected5" "$(check_uri_with_branch $repo some-branch | jq '.')"
+
+  # Test check doesn't see changes to in parent branches when checking from a revision
+  local expected6=$(echo "[{\"ref\": $(echo $ref3 | jq -R .)}]"|jq ".")
+  assertEquals "$expected6" "$(check_uri_with_branch_from $repo $ref2 some-branch | jq '.')"
+}
+
+test_check_checks_out_expected_branch_after_clone_and_pull() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit_to_branch $repo some-branch )
+  local ref2=$(make_commit $repo)
+
+  # first check triggers clone
+  local expected1=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected1" "$(check_uri_with_branch $repo some-branch | jq '.')"
+  assertEquals "some-branch" $(hg branch --cwd $TMPDIR/hg-resource-repo-cache)
+
+  # second check triggers pull
+  local expected2=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]"|jq ".")
+  assertEquals "$expected2" "$(check_uri_with_branch $repo some-branch | jq '.')"
+  assertEquals "some-branch" $(hg branch --cwd $TMPDIR/hg-resource-repo-cache)
 }
 
 test_it_checks_given_paths() {

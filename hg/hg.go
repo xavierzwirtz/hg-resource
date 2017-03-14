@@ -83,7 +83,7 @@ func (self *Repository) pull() (output []byte, err error) {
 		"-q",
 		"--cwd", self.Path,
 		"--clean",
-		"--rev", "tip",
+		"--rev", self.Branch,
 	})
 	output = append(output, checkoutOutput...)
 	if err != nil {
@@ -204,10 +204,11 @@ func (self *Repository) Purge() (output []byte, err error) {
 }
 
 func (self *Repository) GetLatestCommitId() (output string, err error) {
+	branch := escapePath(self.Branch)
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
 	tagFilter := self.maybeTagFilter()
-	revSet := fmt.Sprintf("last((((%s) - (%s)) & %s) - desc('[ci skip]'))", include, exclude, tagFilter)
+	revSet := fmt.Sprintf("last((((%s) - (%s)) & branch('%s') & %s) - desc('[ci skip]'))", include, exclude, branch, tagFilter)
 
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
@@ -237,11 +238,12 @@ func (self *Repository) GetCurrentCommitId() (output string, err error) {
 }
 
 func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
+	branch := escapePath(self.Branch)
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
 	tagFilter := self.maybeTagFilter()
-	revSet := fmt.Sprintf("(descendants(%s) - %s) & %s & ((%s) - (%s)) - desc('[ci skip]')",
-		commitId, commitId, tagFilter, include, exclude)
+	revSet := fmt.Sprintf("(descendants(%s) - %s) & branch('%s') & %s & ((%s) - (%s)) - desc('[ci skip]')",
+		commitId, commitId, branch, tagFilter, include, exclude)
 
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
