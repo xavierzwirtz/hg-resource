@@ -40,6 +40,10 @@ Tracks the commits in a [Mercurial](https://www.mercurial-scm.org/) repository.
 * `tag_filter`: *Optional*. If specified, the resource will only detect commits
   that have a tag matching the specified regular expression.
 
+* `revset_filter`: *Optional*. If specified, the resource will only detect commits
+  that matches the specified revset expression
+  (see https://www.mercurial-scm.org/repo/hg/help/revsets).
+
 ### Example
 
 Resource configuration for a private repo:
