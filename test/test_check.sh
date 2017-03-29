@@ -254,6 +254,31 @@ test_it_can_check_with_tag_filter_from_a_ref() {
   assertEquals "$expected" "$(check_uri_with_tag_filter_from_ref $repo $ref2 '-staging$' | jq '.')"
 }
 
+test_it_can_check_with_revset_filter() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+  local ref2=$(make_annotated_tag $repo "1.0-staging" "a tag")
+  local ref3=$(make_commit $repo)
+  local ref4=$(make_annotated_tag $repo "1.0-production" "another tag")
+  local ref5=$(make_commit $repo)
+
+  local expected=$(echo "[{\"ref\": $(echo $ref1 | jq -R .)}]" | jq ".")
+  assertEquals "$expected" "$(check_uri_with_revset_filter $repo 'tag("re:-staging$")' | jq '.')"
+}
+
+test_it_can_check_with_revset_filter_from_a_ref() {
+  local repo=$(init_repo)
+  local ref1=$(make_commit $repo)
+  local ref2=$(make_annotated_tag $repo "1.0-staging" "a tag")
+  local ref3=$(make_commit $repo)
+  local ref4=$(make_annotated_tag $repo "1.0-production" "another tag")
+  local ref5=$(make_commit $repo)
+  local ref6=$(make_annotated_tag $repo "1.1-staging" "much tag")
+
+  local expected=$(echo "[{\"ref\": $(echo $ref5 | jq -R .)}]" | jq ".")
+  assertEquals "$expected" "$(check_uri_with_revset_filter_from_ref $repo $ref2 'tag("re:-staging$")' | jq '.')"
+}
+
 test_it_can_check_from_head_only_fetching_single_branch() {
   local repo=$(init_repo)
   local ref=$(make_commit $repo)
