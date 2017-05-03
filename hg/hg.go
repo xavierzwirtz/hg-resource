@@ -16,6 +16,7 @@ type Repository struct {
 	IncludePaths        []string
 	ExcludePaths        []string
 	TagFilter           string
+	RevSetFilter        string
 	SkipSslVerification bool
 }
 
@@ -207,8 +208,8 @@ func (self *Repository) GetLatestCommitId() (output string, err error) {
 	branch := escapePath(self.Branch)
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	tagFilter := self.maybeTagFilter()
-	revSet := fmt.Sprintf("last((((%s) - (%s)) & branch('%s') & %s) - desc('[ci skip]'))", include, exclude, branch, tagFilter)
+	revSetFilter := self.maybeRevSetFilter()
+	revSet := fmt.Sprintf("last((((%s) - (%s)) & branch('%s') & %s) - desc('[ci skip]'))", include, exclude, branch, revSetFilter)
 
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
@@ -241,9 +242,9 @@ func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	branch := escapePath(self.Branch)
 	include := self.makeIncludeQueryFragment()
 	exclude := self.makeExcludeQueryFragment()
-	tagFilter := self.maybeTagFilter()
+	revSetFilter := self.maybeRevSetFilter()
 	revSet := fmt.Sprintf("(descendants(%s) - %s) & branch('%s') & %s & ((%s) - (%s)) - desc('[ci skip]')",
-		commitId, commitId, branch, tagFilter, include, exclude)
+		commitId, commitId, branch, revSetFilter, include, exclude)
 
 	_, outBytes, err := self.run("log", []string{
 		"--cwd", self.Path,
@@ -265,12 +266,20 @@ func (self *Repository) GetDescendantsOf(commitId string) ([]string, error) {
 	return commits, nil
 }
 
-func (self *Repository) maybeTagFilter() string {
+func (self *Repository) maybeRevSetFilter() string {
+	var filters []string
 	if len(self.TagFilter) > 0 {
-		return "tag('re:" + escapePath(self.TagFilter) + "')"
-	} else {
+		filters = append(filters,
+			"tag('re:"+escapePath(self.TagFilter)+"')")
+	}
+	if len(self.RevSetFilter) > 0 {
+		filters = append(filters,
+			"("+escapePath(self.RevSetFilter)+")")
+	}
+	if len(filters) == 0 {
 		return "all()"
 	}
+	return strings.Join(filters, " & ")
 }
 
 func (self *Repository) Metadata(commitId string) (metadata []CommitProperty, err error) {

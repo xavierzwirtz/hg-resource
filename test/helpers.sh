@@ -368,6 +368,32 @@ check_uri_with_tag_filter_from_ref() {
   }" | ${resource_dir}/check | tee /dev/stderr
 }
 
+check_uri_with_revset_filter() {
+  local uri=$1
+  local revset_filter=$2
+  jq -n "{
+    source: {
+      uri: $(echo $uri | jq -R .),
+      revset_filter: $(echo $revset_filter | jq -R .)
+    }
+  }" | ${resource_dir}/check | tee /dev/stderr
+}
+
+check_uri_with_revset_filter_from_ref() {
+  local uri=$1
+  local ref=$2
+  local revset_filter=$3
+  jq -n "{
+    source: {
+      uri: $(echo $uri | jq -R .),
+      revset_filter: $(echo $revset_filter | jq -R .)
+    },
+    version: {
+      ref: $(echo $ref | jq -R .)
+    }
+  }" | ${resource_dir}/check | tee /dev/stderr
+}
+
 get_uri() {
   jq -n "{
     source: {

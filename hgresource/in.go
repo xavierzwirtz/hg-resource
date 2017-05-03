@@ -24,6 +24,7 @@ func runIn(args []string, params *JsonInput, outWriter io.Writer, errWriter io.W
 		IncludePaths:        params.Source.IncludePaths,
 		ExcludePaths:        params.Source.ExcludePaths,
 		TagFilter:           params.Source.TagFilter,
+		RevSetFilter:        params.Source.RevSetFilter,
 		SkipSslVerification: params.Source.SkipSslVerification,
 	}
 

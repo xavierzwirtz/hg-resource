@@ -27,6 +27,7 @@ var _ = Describe("Json", func() {
 					],
 					"branch": "a_branch",
 					"tag_filter": "staging",
+					"revset_filter": "public()",
 					"skip_ssl_verification": true
 				},
 				"version": {
@@ -84,6 +85,7 @@ var _ = Describe("Json", func() {
 			Expect(result.Source.Branch).To(Equal("a_branch"))
 			Expect(result.Source.SkipSslVerification).To(BeTrue())
 			Expect(result.Source.TagFilter).To(Equal("staging"))
+			Expect(result.Source.RevSetFilter).To(Equal("public()"))
 			Expect(result.Version.Ref).To(Equal("abc"))
 		})
 	})
