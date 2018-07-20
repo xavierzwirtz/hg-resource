@@ -17,7 +17,6 @@ RUN apk add --update \
     jq \
     openssh \
     tar \
-    openssl \
     mercurial
 COPY --from=builder /assets /opt/resource
 ADD assets/askpass.sh /opt/resource
