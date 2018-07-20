@@ -20,7 +20,6 @@ RUN apk add --update \
     openssl \
     mercurial
 COPY --from=builder /assets /opt/resource
-COPY --from=builder /assets/hgresource /opt/resource
 ADD assets/askpass.sh /opt/resource
 RUN chmod +x /opt/resource/*
 RUN ln -s /opt/resource/hgresource /opt/resource/in; ln -s /opt/resource/hgresource /opt/resource/out; ln -s /opt/resource/hgresource /opt/resource/check
