@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/concourse/hg-resource/hg"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/concourse/hg-resource/hg"
 )
 
 const cmdOutName string = "out"
@@ -112,11 +113,11 @@ func rebaseAndPush(tempRepo *hg.Repository, params PushParams, maxRetries int, e
 		output, err = tempRepo.Push(params.DestUri, params.Branch)
 		errWriter.Write(output)
 		if err == nil {
-			fmt.Fprintf(errWriter, "pushed\n")
+			fmt.Fprintln(errWriter, "pushed")
 			return
 		}
 		if !isNonFastForwardError(string(output)) {
-			fmt.Fprintln(errWriter, "failed with non-rebase error\n")
+			fmt.Fprintln(errWriter, "failed with non-rebase error")
 			return
 		}
 	}
