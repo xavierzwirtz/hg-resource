@@ -133,10 +133,11 @@ environment is consistent across any `docker` enabled platform. When the docker
 image builds, the test are run inside the docker container, on failure they
 will stop the build.
 
-Run the tests with the following command:
+Run the tests with the following commands for both `alpine` and `ubuntu` images:
 
 ```sh
-docker build -t hg-resource .
+docker build -t hg-resource -f dockerfiles/alpine/Dockerfile .
+docker build -t hg-resource -f dockerfiles/ubuntu/Dockerfile .
 ```
 
 ### Contributing
