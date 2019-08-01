@@ -52,7 +52,7 @@ func (self *Repository) CloneOrPull(sourceUri string) ([]byte, error) {
 	if errIfNotExists != nil || !dirInfo.IsDir() {
 		return self.clone(sourceUri)
 	} else {
-		return self.pull()
+		return self.pull(sourceUri)
 	}
 }
 
@@ -70,10 +70,11 @@ func (self *Repository) clone(sourceUri string) (output []byte, err error) {
 	return
 }
 
-func (self *Repository) pull() (output []byte, err error) {
+func (self *Repository) pull(sourceUri string) (output []byte, err error) {
 	_, output, err = self.run("pull", []string{
 		"-q",
 		"--cwd", self.Path,
+		sourceUri,
 	})
 	if err != nil {
 		err = fmt.Errorf("Error pulling changes from repository: %s", err)

@@ -191,4 +191,20 @@ test_it_ignores_obsolete() {
   assertEquals "$ref1" "$(get_working_dir_ref $dest)"
 }
 
+test_path_changed() {
+  local repo1=$(init_repo)
+  local repo1_ref=$(make_commit $repo1)
+  local repo2=$(mktemp -d $TMPDIR/repo.XXXXXX)
+  cp -r -T $repo1 $repo2
+  local repo2_ref=$(make_commit $repo2)
+
+  local dest=$TMPDIR/destination
+
+  local expected1=$(echo "{\"ref\": $(echo $repo1_ref | jq -R .)}" | jq ".")
+  assertEquals "$expected1" "$(get_uri_at_ref $repo1 $repo1_ref $dest | jq '.version')"
+
+  local expected2=$(echo "{\"ref\": $(echo $repo2_ref | jq -R .)}" | jq ".")
+  assertEquals "$expected2" "$(get_uri_at_ref $repo2 $repo2_ref $dest | jq '.version')"
+}
+
 source $(dirname $0)/shunit2
