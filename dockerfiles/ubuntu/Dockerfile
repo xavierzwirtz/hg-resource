@@ -38,6 +38,5 @@ RUN set -e; for test in /go-tests/*.test; do \
 	done
 
 COPY /test /test
-RUN /test/all.sh
 
 FROM resource
